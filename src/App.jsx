@@ -13,9 +13,22 @@ function getInitialParams() {
   return {
     rows: parseInt(params.get('rows'), 10) || DEFAULT_ROWS,
     cols: parseInt(params.get('cols'), 10) || DEFAULT_COLS,
-    pvwsUrl: params.get('pvws') || `ws://${window.location.hostname}/pvws/pv`,
+    pvwsUrl: params.get('pvws') || '',
     valuesPath: params.get('values') || '/values.yaml',
   };
+}
+
+function buildPvwsUrl(pvwsParam, pvwsConfig) {
+  // Explicit ?pvws= query param takes priority
+  if (pvwsParam) return pvwsParam;
+  // Use pvws host/port from values.yaml config
+  if (pvwsConfig && pvwsConfig.host) {
+    const port = pvwsConfig.port || 80;
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    return `${proto}://${pvwsConfig.host}:${port}/pvws/pv`;
+  }
+  // Fallback: same hostname as the page
+  return `ws://${window.location.hostname}/pvws/pv`;
 }
 
 export default function App() {
@@ -27,28 +40,22 @@ export default function App() {
   const [error, setError] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // PVWS client — single instance
+  // PVWS client — created after config is loaded so we know the pvws endpoint
   const clientRef = useRef(null);
-  if (!clientRef.current) {
-    clientRef.current = new PvwsClient(initial.current.pvwsUrl);
-  }
-  const client = clientRef.current;
-  const connected = usePvwsStatus(client);
+  const connected = usePvwsStatus(clientRef.current);
 
-  // Connect on mount
-  useEffect(() => {
-    client.connect();
-    return () => client.disconnect();
-  }, [client]);
-
-  // Load config
+  // Load config, then create and connect PVWS client
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     loadCamerasFromConfig(initial.current.valuesPath)
-      .then(({ cameras: cams }) => {
+      .then(({ cameras: cams, pvws: pvwsConfig }) => {
         if (!cancelled) {
           setCameras(cams);
+          const url = buildPvwsUrl(initial.current.pvwsUrl, pvwsConfig);
+          const client = new PvwsClient(url);
+          clientRef.current = client;
+          client.connect();
           setLoading(false);
         }
       })
@@ -58,8 +65,13 @@ export default function App() {
           setLoading(false);
         }
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (clientRef.current) clientRef.current.disconnect();
+    };
   }, []);
+
+  const client = clientRef.current;
 
   if (loading) {
     return (

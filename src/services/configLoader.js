@@ -1,5 +1,20 @@
 import yaml from 'js-yaml';
 
+function deepMerge(target, source) {
+  const result = { ...target };
+  for (const key of Object.keys(source)) {
+    if (
+      source[key] && typeof source[key] === 'object' && !Array.isArray(source[key]) &&
+      result[key] && typeof result[key] === 'object' && !Array.isArray(result[key])
+    ) {
+      result[key] = deepMerge(result[key], source[key]);
+    } else {
+      result[key] = source[key];
+    }
+  }
+  return result;
+}
+
 /**
  * Load values.yaml from the public folder and extract cameras
  * that have stream_enable: true.
@@ -30,10 +45,23 @@ export async function loadCamerasFromConfig(yamlPath = '/values.yaml') {
   const namespace = config.namespace || beamline;
   const domain = config.epik8namespace || '';
 
+  // Extract pvws service configuration
+  const pvwsCfg = config.epicsConfiguration?.services?.camarray?.pvws || {};
+  const pvws = {
+    host: pvwsCfg.host || '',
+    port: pvwsCfg.port || 80,
+  };
+
+  const iocDefaults = config.iocDefaults || {};
   const iocs = config.epicsConfiguration?.iocs || [];
   const cameras = [];
 
-  for (const ioc of iocs) {
+  for (const rawIoc of iocs) {
+    // Merge iocDefaults by template (e.g. "adcamera") — IOC-specific values override defaults
+    const template = rawIoc.template || '';
+    const defaults = iocDefaults[template] || {};
+    const ioc = deepMerge(defaults, rawIoc);
+
     if (!ioc.stream_enable) continue;
 
     const iocPrefix = ioc.iocprefix || '';
@@ -45,7 +73,7 @@ export async function loadCamerasFromConfig(yamlPath = '/values.yaml') {
       const pvPrefix = `${iocPrefix}:${deviceName}`;
       // MJPEG stream URL: <beamline>-<iocname>.<domain>:<port>/<DEVICE>.mjpg
       const streamHost = `${namespace}-${ioc.name}.${domain}`;
-      const streamUrl = `//${streamHost}:${httpPort}/${deviceName}.mjpg`;
+      const streamUrl = `//${streamHost}/${deviceName}.STREAM.mjpg`;
 
       cameras.push({
         iocName: ioc.name,
@@ -61,5 +89,5 @@ export async function loadCamerasFromConfig(yamlPath = '/values.yaml') {
     }
   }
 
-  return { cameras, config };
+  return { cameras, config, pvws };
 }
