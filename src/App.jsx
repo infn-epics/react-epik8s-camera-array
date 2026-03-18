@@ -21,14 +21,17 @@ function getInitialParams() {
 function buildPvwsUrl(pvwsParam, pvwsConfig) {
   // Explicit ?pvws= query param takes priority
   if (pvwsParam) return pvwsParam;
-  // Use pvws host/port from values.yaml config
+  // Use pvws host from values.yaml config.
+  // NOTE: pvwsConfig.port is the internal k8s service port (e.g. 80).
+  // The nginx ingress terminates TLS on 443 externally, so we omit the port
+  // and rely on the browser default (ws→80, wss→443).
   if (pvwsConfig && pvwsConfig.host) {
-    const port = pvwsConfig.port || 80;
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    return `${proto}://${pvwsConfig.host}:${port}/pvws/pv`;
+    return `${proto}://${pvwsConfig.host}/pvws/pv`;
   }
   // Fallback: same hostname as the page
-  return `ws://${window.location.hostname}/pvws/pv`;
+  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  return `${proto}://${window.location.hostname}/pvws/pv`;
 }
 
 export default function App() {
