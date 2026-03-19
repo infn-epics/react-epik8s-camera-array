@@ -2,12 +2,15 @@ import { useState, useCallback } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 import DashboardGrid from '../layout/DashboardGrid.jsx';
 import { useLayout } from '../../hooks/useLayout.js';
-import { getWidgetComponent, widgetSizeMap } from '../widgets/WidgetRegistry.js';
+import { getWidgetComponent as getWidgetComp, familyToWidgetType } from '../../widgets/registry.js';
+import { widgetSizeMap } from '../../widgets/registry.js';
+import WidgetFrame from '../../widgets/WidgetFrame.jsx';
+import { deviceToWidgetConfig } from '../../models/dashboard.js';
 import SearchFilter from '../common/SearchFilter.jsx';
 
 /**
  * InstrumentationView - Filterable/groupable device dashboard.
- * Uses react-grid-layout for drag/drop/resize.
+ * Uses the new widget system from src/widgets/.
  */
 export default function InstrumentationView() {
   const { devices, pvwsClient } = useApp();
@@ -45,7 +48,7 @@ export default function InstrumentationView() {
           >
             {editMode ? '🔒 Lock' : '🔓 Edit'}
           </button>
-          <button className="toolbar-btn" onClick={resetLayout}>
+          <button className="toolbar-btn" onClick={resetLayout} title="Reset to auto layout">
             ↻ Reset
           </button>
           {hiddenIds.size > 0 && (
@@ -69,14 +72,23 @@ export default function InstrumentationView() {
             isResizable={editMode}
           >
             {visibleDevices.map((device) => {
-              const WidgetComp = getWidgetComponent(device);
+              const widgetType = familyToWidgetType(device.family);
+              const Component = getWidgetComp(widgetType);
+              const config = deviceToWidgetConfig(device);
+              const widget = { id: device.id, type: widgetType, config };
               return (
                 <div key={device.id}>
-                  <WidgetComp
-                    device={device}
+                  <WidgetFrame
+                    widget={widget}
+                    editMode={editMode}
                     client={pvwsClient}
-                    onHide={() => hideWidget(device.id)}
-                  />
+                    onRemove={() => hideWidget(device.id)}
+                  >
+                    <Component
+                      config={config}
+                      client={pvwsClient}
+                    />
+                  </WidgetFrame>
                 </div>
               );
             })}

@@ -45,6 +45,18 @@ function resolveType(ioc) {
 }
 
 /**
+ * Normalize zones field: string → string, array → first element (primary zone).
+ * Also stores an `allZones` array for multi-zone membership.
+ */
+function resolveZone(raw) {
+  if (!raw) return { zone: '', allZones: [] };
+  if (Array.isArray(raw)) {
+    return { zone: raw[0] || '', allZones: raw.map(String) };
+  }
+  return { zone: String(raw), allZones: [String(raw)] };
+}
+
+/**
  * Parse the full epik8s config and return a normalized device list.
  */
 export function parseDevices(config) {
@@ -63,7 +75,7 @@ export function parseDevices(config) {
     const iocPrefix = ioc.iocprefix || '';
     const family = resolveFamily(ioc);
     const type = resolveType(ioc);
-    const zone = ioc.zones || '';
+    const iocZone = resolveZone(ioc.zones);
     const httpPort = ioc.service?.http?.port || 8080;
     const isCamera = family === 'cam' || ioc.stream_enable;
     const devs = ioc.devices || [];
@@ -72,6 +84,9 @@ export function parseDevices(config) {
       const deviceName = dev.name;
       const pvPrefix = `${iocPrefix}:${deviceName}`;
       const id = `${ioc.name}:${deviceName}`;
+
+      // Device-level zones override IOC-level zones
+      const devZone = dev.zones ? resolveZone(dev.zones) : iocZone;
 
       // Stream URL for cameras
       let streamUrl = null;
@@ -88,7 +103,8 @@ export function parseDevices(config) {
         pvPrefix,
         type,
         family,
-        zone,
+        zone: devZone.zone,
+        allZones: devZone.allZones,
         template,
         beamline,
         namespace,
@@ -110,13 +126,18 @@ export function parseDevices(config) {
 
 /**
  * Group devices by a given key (zone, family, type, etc.)
+ * When key is 'zone', uses allZones so a device in ["FI","FI1"] appears in both groups.
  */
 export function groupDevicesBy(devices, key) {
   const groups = {};
   for (const dev of devices) {
-    const g = dev[key] || 'ungrouped';
-    if (!groups[g]) groups[g] = [];
-    groups[g].push(dev);
+    const keys = (key === 'zone' && dev.allZones?.length)
+      ? dev.allZones
+      : [dev[key] || 'ungrouped'];
+    for (const g of keys) {
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(dev);
+    }
   }
   return groups;
 }

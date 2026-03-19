@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { saveLayout, loadLayout, generateAutoLayout } from '../services/layoutPersistence.js';
+import { widgetSizeMap } from '../widgets/registry.js';
 
 /**
  * Hook to manage layout state for a view + scope.
@@ -20,10 +21,10 @@ export function useLayout(viewName, scope, devices, cols = 12) {
       // Merge: keep saved positions for existing devices, add new ones
       const savedIds = new Set(saved.map((l) => l.i));
       const newDevices = devices.filter((d) => !savedIds.has(d.id));
-      const autoNew = generateAutoLayout(newDevices, cols);
+      const autoNew = generateAutoLayout(newDevices, cols, widgetSizeMap);
       setLayout([...saved, ...autoNew]);
     } else {
-      setLayout(generateAutoLayout(devices, cols));
+      setLayout(generateAutoLayout(devices, cols, widgetSizeMap));
     }
   }, [viewName, scope, devices, cols]);
 
@@ -37,10 +38,19 @@ export function useLayout(viewName, scope, devices, cols = 12) {
 
   const resetLayout = useCallback(() => {
     if (!devices) return;
-    const auto = generateAutoLayout(devices, cols);
+    const auto = generateAutoLayout(devices, cols, widgetSizeMap);
     setLayout(auto);
     saveLayout(viewName, scope, auto);
   }, [viewName, scope, devices, cols]);
 
-  return { layout, onLayoutChange, resetLayout };
+  /** Apply an external layout (e.g. from a named preset). */
+  const applyLayout = useCallback(
+    (newLayout) => {
+      setLayout(newLayout);
+      saveLayout(viewName, scope, newLayout);
+    },
+    [viewName, scope],
+  );
+
+  return { layout, onLayoutChange, resetLayout, applyLayout };
 }

@@ -1,10 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext.jsx';
+import { DashboardProvider } from './context/DashboardContext.jsx';
 import { useTheme } from './hooks/useTheme.js';
 import AppShell from './components/layout/AppShell.jsx';
+import DashboardView from './components/views/DashboardView.jsx';
 import CameraView from './components/views/CameraView.jsx';
 import InstrumentationView from './components/views/InstrumentationView.jsx';
 import BeamlineView from './components/views/BeamlineView.jsx';
+import SettingsView from './components/views/SettingsView.jsx';
 
 function AppRoutes() {
   const { loading, error } = useApp();
@@ -33,14 +36,18 @@ function AppRoutes() {
   }
 
   return (
-    <AppShell theme={theme} onToggleTheme={toggleTheme}>
-      <Routes>
-        <Route path="/cameras" element={<CameraView />} />
-        <Route path="/instrumentation" element={<InstrumentationView />} />
-        <Route path="/beamline" element={<BeamlineView />} />
-        <Route path="*" element={<Navigate to="/cameras" replace />} />
-      </Routes>
-    </AppShell>
+    <DashboardProvider>
+      <AppShell theme={theme} onToggleTheme={toggleTheme}>
+        <Routes>
+          <Route path="/dashboard" element={<DashboardView />} />
+          <Route path="/cameras" element={<CameraView />} />
+          <Route path="/instrumentation" element={<InstrumentationView />} />
+          <Route path="/beamline" element={<BeamlineView />} />
+          <Route path="/settings" element={<SettingsView />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </AppShell>
+    </DashboardProvider>
   );
 }
 

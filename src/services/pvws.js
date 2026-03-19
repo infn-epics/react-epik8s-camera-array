@@ -63,6 +63,7 @@ export default class PvwsClient {
     }
 
     this._ws.onopen = () => {
+      console.log(`[PVWS] Connected to ${this.url}`);
       this._connected = true;
       this._emitStatus();
       // re-subscribe any PVs that were registered while disconnected
@@ -76,15 +77,16 @@ export default class PvwsClient {
       }
     };
 
-    this._ws.onclose = () => {
+    this._ws.onclose = (e) => {
+      console.log(`[PVWS] Disconnected (code=${e.code})`);
       this._connected = false;
       this._ws = null;
       this._emitStatus();
       this._scheduleReconnect();
     };
 
-    this._ws.onerror = () => {
-      // onclose will fire after this
+    this._ws.onerror = (e) => {
+      console.warn('[PVWS] WebSocket error', e);
     };
 
     this._ws.onmessage = (evt) => {
@@ -92,6 +94,10 @@ export default class PvwsClient {
       try {
         msg = JSON.parse(evt.data);
       } catch {
+        return;
+      }
+      if (msg.type === 'error') {
+        console.warn(`[PVWS] Server error: ${msg.message}`);
         return;
       }
       if (msg.type === 'update' && msg.pv) {

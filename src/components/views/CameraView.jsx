@@ -1,6 +1,7 @@
 import { useState, useMemo, lazy, Suspense } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
-import CameraWidget from '../widgets/CameraWidget.jsx';
+import CameraWidget from '../../widgets/types/CameraWidget.jsx';
+import { deviceToWidgetConfig } from '../../models/dashboard.js';
 
 /**
  * CameraView - NxM grid of camera streams (original camera array functionality).
@@ -108,7 +109,7 @@ export default function CameraView() {
                   ))}
                 </select>
               </div>
-              <CameraWidget device={cam} client={pvwsClient} />
+              <CameraWidget config={deviceToWidgetConfig(cam)} client={pvwsClient} />
             </div>
           );
         })}

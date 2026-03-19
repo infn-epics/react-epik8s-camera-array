@@ -1,23 +1,32 @@
-import { NavLink } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { usePvwsStatus } from '../../hooks/usePv.js';
 import { useApp } from '../../context/AppContext.jsx';
+import Sidebar from './Sidebar.jsx';
 
 /**
- * AppShell - Top navigation bar with view switching and status indicators.
+ * AppShell — Grafana-like layout with sidebar + header + content area.
  */
 export default function AppShell({ children, theme, onToggleTheme }) {
   const { pvwsClient, devices } = useApp();
   const connected = usePvwsStatus(pvwsClient);
+  const location = useLocation();
+  const isDashboard = location.pathname === '/dashboard';
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
     <div className="app-shell">
       <header className="app-navbar">
         <div className="navbar-brand">
           <span className="navbar-logo">⚛</span>
-          <span className="navbar-title">EPIK8s Dashboard</span>
+          <span className="navbar-title">EPIK8s</span>
         </div>
 
         <nav className="navbar-nav">
+          <NavLink to="/dashboard" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+            📊 Dashboards
+          </NavLink>
+          <span className="nav-divider" />
           <NavLink to="/cameras" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
             📷 Cameras
           </NavLink>
@@ -26,6 +35,10 @@ export default function AppShell({ children, theme, onToggleTheme }) {
           </NavLink>
           <NavLink to="/beamline" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
             🔬 Beamline
+          </NavLink>
+          <span className="nav-divider" />
+          <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+            ⚙ Settings
           </NavLink>
         </nav>
 
@@ -40,7 +53,17 @@ export default function AppShell({ children, theme, onToggleTheme }) {
         </div>
       </header>
 
-      <main className="app-content">{children}</main>
+      <div className="app-body">
+        {isDashboard && (
+          <Sidebar
+            collapsed={!sidebarOpen}
+            onToggle={() => setSidebarOpen((o) => !o)}
+          />
+        )}
+        <main className={`app-content ${isDashboard ? 'with-sidebar' : ''}`}>
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

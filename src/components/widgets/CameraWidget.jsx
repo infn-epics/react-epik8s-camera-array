@@ -4,24 +4,69 @@ import { usePv } from '../../hooks/usePv.js';
 import { PvSlider, PvDisplay } from '../common/PvControls.jsx';
 
 /**
+ * Check if a PVWS update message represents a "truthy" / enabled state.
+ * Returns: true (on), false (explicitly off), or null (unknown / no value yet).
+ */
+function pvState(msg, enableLabel) {
+  if (!msg) return null;
+  const v = msg.value;
+  const t = msg.text;
+  // No value received yet (PVWS connected but channel not established)
+  if (v === undefined && t === undefined) return null;
+  if (v === 1 || v === true) return true;
+  if (typeof v === 'string' && (v === '1' || v === enableLabel || v === 'Yes' || v === 'true')) return true;
+  if (typeof v === 'number' && v > 0) return true;
+  if (typeof t === 'string' && (t === enableLabel || t === '1' || t === 'Yes')) return true;
+  return false;
+}
+
+/**
  * CameraWidget - MJPEG stream with PV controls for acquire/exposure/gain.
+ *
+ * Stream rendering logic:
+ *  - PV says enabled (value=1) → show stream
+ *  - PV says disabled (value=0) → show "Stream off"
+ *  - PV state unknown (no value from PVWS, e.g. channel not connected) → try stream anyway
  */
 export default function CameraWidget({ device, client, onHide }) {
   const [hasError, setHasError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const imgRef = useRef(null);
+  const timerRef = useRef(null);
 
   const streamEnablePv = usePv(client, `${device.pvPrefix}:Stream1:EnableCallbacks`);
   const acquirePv = usePv(client, `${device.pvPrefix}:Acquire`);
-  const streamEnabled =
-    streamEnablePv?.value === 1 || streamEnablePv?.value === '1' || streamEnablePv?.value === 'Enable';
-  const isAcquiring = acquirePv?.value === 1 || acquirePv?.value === 'Acquire';
 
-  // Reset error state on stream toggle
+  const streamState = pvState(streamEnablePv, 'Enable');   // true | false | null
+  const acquireState = pvState(acquirePv, 'Acquire');
+
+  // Show stream if PV says enabled OR if PV state is unknown (no value yet)
+  const showStream = streamState !== false && !!device.streamUrl;
+  const streamEnabled = streamState === true;
+  const isAcquiring = acquireState === true;
+
+  // Reset error/loaded state on stream toggle or device change
   useEffect(() => {
     setHasError(false);
     setImgLoaded(false);
-  }, [streamEnabled, device.pvPrefix]);
+  }, [streamState, device.pvPrefix]);
+
+  // MJPEG streams are continuous — onLoad may not fire in all browsers.
+  // Use a polling check on naturalWidth as fallback.
+  useEffect(() => {
+    if (!showStream || imgLoaded || hasError) {
+      clearInterval(timerRef.current);
+      return;
+    }
+    timerRef.current = setInterval(() => {
+      const img = imgRef.current;
+      if (img && img.naturalWidth > 0) {
+        setImgLoaded(true);
+        clearInterval(timerRef.current);
+      }
+    }, 300);
+    return () => clearInterval(timerRef.current);
+  }, [showStream, imgLoaded, hasError]);
 
   const toggleStream = () => {
     if (!client) return;
@@ -34,12 +79,12 @@ export default function CameraWidget({ device, client, onHide }) {
     client.put(`${device.pvPrefix}:Acquire`, isAcquiring ? 0 : 1);
   };
 
-  const status = hasError ? 'error' : streamEnabled ? 'ok' : 'warning';
+  const status = hasError ? 'error' : streamEnabled ? 'ok' : streamState === null ? 'unknown' : 'warning';
 
   const detailContent = (
     <div className="camera-detail">
       <div className="camera-detail-stream">
-        {streamEnabled && device.streamUrl ? (
+        {showStream ? (
           <img src={device.streamUrl} alt={device.name} className="stream-img" />
         ) : (
           <div className="stream-disabled">Stream disabled</div>
@@ -66,7 +111,7 @@ export default function CameraWidget({ device, client, onHide }) {
       <div className="camera-widget-body">
         {/* Stream image area */}
         <div className="camera-stream-area">
-          {streamEnabled && device.streamUrl ? (
+          {showStream ? (
             hasError ? (
               <div className="stream-error">
                 <span>⚠ Unavailable</span>
@@ -74,7 +119,7 @@ export default function CameraWidget({ device, client, onHide }) {
               </div>
             ) : (
               <>
-                {!imgLoaded && <div className="stream-connecting">Connecting…</div>}
+                {!imgLoaded && <div className="stream-connecting">{streamState === null ? 'PV unknown — trying stream…' : 'Connecting…'}</div>}
                 <img
                   ref={imgRef}
                   className="stream-img"
@@ -93,10 +138,10 @@ export default function CameraWidget({ device, client, onHide }) {
 
         {/* Quick controls */}
         <div className="camera-quick-controls">
-          <button className={`widget-action-btn ${streamEnabled ? 'on' : 'off'}`} onClick={toggleStream}>
-            {streamEnabled ? '🟢 Stream' : '🔴 Stream'}
+          <button className={`widget-action-btn ${streamEnabled ? 'on' : streamState === null ? 'unknown' : 'off'}`} onClick={toggleStream}>
+            {streamEnabled ? '🟢 Stream' : streamState === null ? '⚪ Stream' : '🔴 Stream'}
           </button>
-          <button className={`widget-action-btn ${isAcquiring ? 'on' : 'off'}`} onClick={toggleAcquire}>
+          <button className={`widget-action-btn ${isAcquiring ? 'on' : acquireState === null ? 'unknown' : 'off'}`} onClick={toggleAcquire}>
             {isAcquiring ? '⏹ Stop' : '▶ Acquire'}
           </button>
         </div>

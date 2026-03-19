@@ -3,12 +3,20 @@
  *
  * Layouts are stored per view + zone/filter key.
  * Key format: "epik8s-layout:<view>:<scope>"
+ *
+ * Named presets are stored separately:
+ * Key format: "epik8s-presets:<view>"  →  { name: layout[] }
  */
 
 const STORAGE_PREFIX = 'epik8s-layout';
+const PRESETS_PREFIX = 'epik8s-presets';
 
 function makeKey(view, scope = 'default') {
   return `${STORAGE_PREFIX}:${view}:${scope}`;
+}
+
+function presetsKey(view) {
+  return `${PRESETS_PREFIX}:${view}`;
 }
 
 /**
@@ -94,4 +102,78 @@ export function generateAutoLayout(devices, cols = 12, sizeMap = {}) {
   }
 
   return layout;
+}
+
+/* ===== Named layout presets ===== */
+
+/**
+ * Get all saved preset names for a view.
+ * @returns {string[]} Sorted preset names
+ */
+export function listPresets(view) {
+  try {
+    const data = localStorage.getItem(presetsKey(view));
+    return data ? Object.keys(JSON.parse(data)).sort() : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Save the current layout as a named preset.
+ */
+export function savePreset(view, name, layout) {
+  try {
+    const key = presetsKey(view);
+    const existing = JSON.parse(localStorage.getItem(key) || '{}');
+    existing[name] = layout;
+    localStorage.setItem(key, JSON.stringify(existing));
+  } catch {
+    // storage full
+  }
+}
+
+/**
+ * Load a named preset layout.
+ * @returns {Array|null}
+ */
+export function loadPreset(view, name) {
+  try {
+    const key = presetsKey(view);
+    const existing = JSON.parse(localStorage.getItem(key) || '{}');
+    return existing[name] || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Delete a named preset.
+ */
+export function deletePreset(view, name) {
+  try {
+    const key = presetsKey(view);
+    const existing = JSON.parse(localStorage.getItem(key) || '{}');
+    delete existing[name];
+    localStorage.setItem(key, JSON.stringify(existing));
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Rename a preset.
+ */
+export function renamePreset(view, oldName, newName) {
+  try {
+    const key = presetsKey(view);
+    const existing = JSON.parse(localStorage.getItem(key) || '{}');
+    if (existing[oldName]) {
+      existing[newName] = existing[oldName];
+      delete existing[oldName];
+      localStorage.setItem(key, JSON.stringify(existing));
+    }
+  } catch {
+    // ignore
+  }
 }

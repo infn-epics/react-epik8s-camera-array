@@ -12,12 +12,14 @@ export async function loadConfig(yamlPath = '/values.yaml') {
   const text = await resp.text();
   const config = yaml.load(text);
 
-  // Extract pvws service config
+  // Extract pvws service config — check camarray.pvws first (HTTP-friendly),
+  // then fall back to any service with a pvws block.
   const services = config.epicsConfiguration?.services || {};
-  let pvwsCfg = null;
-  // Check dbwr.pvws, pws, or any service with pvws block
-  for (const svc of Object.values(services)) {
-    if (svc.pvws?.host) { pvwsCfg = svc.pvws; break; }
+  let pvwsCfg = services.camarray?.pvws || null;
+  if (!pvwsCfg) {
+    for (const svc of Object.values(services)) {
+      if (svc.pvws?.host) { pvwsCfg = svc.pvws; break; }
+    }
   }
   pvwsCfg = pvwsCfg || {};
   const pvws = {
