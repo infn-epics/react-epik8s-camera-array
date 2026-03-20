@@ -3208,3 +3208,1096 @@ body,
   color: #34d399;
   font-weight: 600;
 }
+
+/* ===== Beamline Editor ===== */
+.bl-editor {
+  padding: 16px;
+}
+
+.bl-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.bl-editor-title {
+  font-size: 1.1rem;
+  margin: 0;
+  color: var(--text);
+}
+
+.bl-editor-repo {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.bl-editor-notice {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+/* PAT bar */
+.bl-editor-pat-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.bl-editor-pat-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.bl-editor-pat-input {
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.bl-editor-error {
+  font-size: 0.8rem;
+  color: #ef4444;
+  padding: 4px 0;
+}
+
+/* Buttons */
+.bl-btn {
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.bl-btn:hover:not(:disabled) {
+  background: var(--bg);
+  border-color: var(--text-dim);
+}
+
+.bl-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.bl-btn--sm {
+  padding: 4px 10px;
+  font-size: 0.78rem;
+}
+
+.bl-btn--primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.bl-btn--primary:hover:not(:disabled) {
+  background: #3a7ae0;
+}
+
+.bl-btn--danger:hover:not(:disabled) {
+  background: #ef4444;
+  color: #fff;
+  border-color: #ef4444;
+}
+
+/* Validation bar */
+.bl-validation {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  margin-bottom: 10px;
+}
+
+.bl-validation--ok {
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  color: #34d399;
+}
+
+.bl-validation--err {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.bl-validation-list {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 0.78rem;
+}
+
+/* Toolbar */
+.bl-editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 10px;
+}
+
+.bl-editor-toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Flash messages */
+.bl-editor-flash {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  margin-bottom: 10px;
+}
+
+.bl-editor-flash--ok {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+}
+
+.bl-editor-flash--err {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+/* Visual editor sections */
+.bl-editor-visual {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bl-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.bl-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.bl-section-title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+/* IOC / Service rows */
+.bl-row {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  gap: 6px;
+  transition: background 0.15s;
+}
+
+.bl-row:last-child {
+  border-bottom: none;
+}
+
+.bl-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.bl-row--editing {
+  background: rgba(79, 143, 247, 0.05);
+}
+
+.bl-row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bl-row-icon {
+  font-size: 1rem;
+}
+
+.bl-row-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.bl-row-badge {
+  font-size: 0.72rem;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.bl-row-badge--dim {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-dim);
+}
+
+.bl-row-badge--zone {
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+}
+
+.bl-row-badge--sync {
+  background: rgba(52, 211, 153, 0.2);
+  color: #34d399;
+}
+
+.bl-row-meta {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.bl-row-meta--asset {
+  flex: 1;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 300px;
+}
+
+.bl-row-devices {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding-left: 28px;
+}
+
+.bl-device-chip {
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.bl-device-chip--more {
+  color: var(--accent);
+}
+
+.bl-row-actions {
+  display: flex;
+  gap: 4px;
+  align-self: flex-end;
+}
+
+/* Inline editor */
+.bl-row-edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.bl-row-edit-label {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--accent);
+}
+
+.bl-row-edit-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* YAML textarea */
+.bl-editor-yaml {
+  flex: 1;
+}
+
+.bl-yaml-textarea {
+  width: 100%;
+  min-height: 400px;
+  padding: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  background: #0d1117;
+  color: #c9d1d9;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  resize: vertical;
+  box-sizing: border-box;
+  tab-size: 2;
+}
+
+.bl-yaml-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(79, 143, 247, 0.2);
+}
+
+.bl-yaml-textarea--inline {
+  min-height: auto;
+  border-radius: 6px;
+}
+
+/* Add form */
+.bl-add-form {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.bl-add-form .settings-field {
+  flex: 1;
+  min-width: 180px;
+}
+
+/* Commit dialog */
+.bl-commit-dialog {
+  max-width: 520px;
+}
+
+.bl-commit-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+}
+
+.bl-commit-msg {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+}
+
+.bl-commit-msg:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.bl-commit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ─── Smart YAML Editor ──────────────────────────────────────── */
+
+.bl-smart-yaml {
+  position: relative;
+  display: flex;
+  border: 1px solid #444;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1a1a2e;
+  min-height: 300px;
+}
+
+.bl-smart-yaml-gutter {
+  flex: 0 0 44px;
+  background: #141422;
+  color: #666;
+  font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px 6px 8px 0;
+  text-align: right;
+  user-select: none;
+  overflow: hidden;
+}
+
+.bl-smart-yaml-line-no {
+  height: 1.5em;
+}
+
+.bl-smart-yaml-textarea {
+  flex: 1;
+  background: transparent;
+  color: #e0e0e0;
+  border: none;
+  resize: vertical;
+  font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px;
+  outline: none;
+  tab-size: 2;
+  white-space: pre;
+  overflow-wrap: normal;
+  min-height: 300px;
+}
+
+.bl-smart-yaml-errors {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(200, 40, 40, 0.92);
+  color: #fff;
+  padding: 6px 10px;
+  font-size: 12px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+.bl-smart-yaml-err {
+  padding: 2px 0;
+}
+
+/* ─── Template Cards Grid ────────────────────────────────────── */
+
+.bl-tpl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.bl-tpl-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 8px;
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  color: #e0e0e0;
+}
+
+.bl-tpl-card:hover {
+  border-color: #4488ff;
+  box-shadow: 0 0 8px rgba(68, 136, 255, 0.25);
+}
+
+.bl-tpl-card-icon {
+  font-size: 28px;
+}
+
+.bl-tpl-card-label {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.bl-tpl-card-help {
+  font-size: 11px;
+  color: #888;
+}
+
+/* ─── Template Form Fields ───────────────────────────────────── */
+
+.bl-tpl-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.bl-tpl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bl-tpl-field--compact {
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bl-tpl-field--check {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.bl-tpl-field--check input[type="checkbox"] {
+  accent-color: #4488ff;
+  width: 16px;
+  height: 16px;
+}
+
+.bl-tpl-field-label {
+  font-size: 12px;
+  color: #aaa;
+  font-weight: 500;
+}
+
+.bl-tpl-field-hint {
+  font-size: 10px;
+  color: #777;
+}
+
+.bl-tpl-field-help {
+  font-size: 11px;
+  color: #666;
+  font-style: italic;
+}
+
+.bl-tpl-help {
+  font-size: 12px;
+  color: #888;
+  padding: 4px 0 8px;
+  border-bottom: 1px solid #333;
+  margin-bottom: 6px;
+}
+
+/* ─── Device Sub-form ────────────────────────────────────────── */
+
+.bl-tpl-devices {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #333;
+}
+
+.bl-tpl-devices-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: #ccc;
+  font-size: 13px;
+}
+
+.bl-tpl-device-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  background: #141422;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.bl-tpl-device-num {
+  flex: 0 0 28px;
+  color: #666;
+  font-size: 12px;
+  padding-top: 4px;
+  text-align: center;
+}
+
+.bl-tpl-device-fields {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 6px;
+}
+
+.bl-tpl-device-fields .settings-input {
+  font-size: 12px;
+  padding: 4px 6px;
+}
+
+/* ─── Compact Chip Grid (services) ───────────────────────────── */
+
+.bl-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0;
+}
+
+.bl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 20px;
+  font-size: 12px;
+  color: #ccc;
+  transition: border-color 0.15s;
+}
+
+.bl-chip:hover {
+  border-color: #4488ff;
+}
+
+.bl-chip-icon {
+  font-size: 13px;
+}
+
+.bl-chip-name {
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.bl-chip-tag {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 8px;
+  font-size: 10px;
+  background: rgba(68, 136, 255, 0.15);
+  color: #88bbff;
+}
+
+.bl-chip-tag--sync {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.bl-chip-tag--zone {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+}
+
+.bl-chip-action {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.bl-chip-action:hover {
+  color: #e0e0e0;
+}
+
+.bl-chip-action--danger:hover {
+  color: #ef4444;
+}
+
+/* ─── IOC Tree (hierarchical) ────────────────────────────────── */
+
+.bl-tree {
+  padding: 4px 0;
+}
+
+.bl-tree-group {
+  margin-bottom: 4px;
+}
+
+.bl-tree-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+  border-radius: 6px;
+  user-select: none;
+  transition: background 0.12s;
+}
+
+.bl-tree-header:hover {
+  background: rgba(68, 136, 255, 0.08);
+}
+
+.bl-tree-toggle {
+  width: 14px;
+  font-size: 11px;
+  color: #888;
+  text-align: center;
+}
+
+.bl-tree-icon {
+  font-size: 16px;
+}
+
+.bl-tree-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: #e0e0e0;
+}
+
+.bl-tree-count {
+  font-size: 11px;
+  color: #666;
+  margin-left: auto;
+  background: rgba(255,255,255,0.05);
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.bl-tree-subgroup {
+  margin-left: 22px;
+}
+
+.bl-tree-subheader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  user-select: none;
+}
+
+.bl-tree-subheader:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.bl-tree-sublabel {
+  font-size: 12px;
+  color: #aaa;
+  font-weight: 500;
+}
+
+/* ─── IOC Chip (compact inside tree) ─────────────────────────── */
+
+.bl-ioc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  margin: 2px 4px;
+  background: #141422;
+  border: 1px solid #2a2a40;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #ccc;
+  transition: border-color 0.15s;
+}
+
+.bl-ioc-chip:hover {
+  border-color: #4488ff;
+}
+
+.bl-ioc-chip-name {
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.bl-ioc-chip-devs {
+  font-size: 10px;
+  color: #888;
+  background: rgba(255,255,255,0.06);
+  padding: 1px 4px;
+  border-radius: 6px;
+}
+
+/* ─── Beamline Layout Editor ─────────────────────────────────── */
+
+.bll-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 100px);
+  min-height: 500px;
+}
+
+.bll-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #16162a;
+  border-bottom: 1px solid #333;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.bll-toolbar-left,
+.bll-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bll-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ─── Palette sidebar ────────────────────────────────────────── */
+
+.bll-palette {
+  width: 200px;
+  flex: 0 0 200px;
+  background: #111;
+  border-right: 1px solid #333;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.bll-palette-section {
+  margin-bottom: 12px;
+}
+
+.bll-palette-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  padding: 4px 0;
+  border-bottom: 1px solid #2a2a40;
+  margin-bottom: 6px;
+}
+
+.bll-palette-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+}
+
+.bll-palette-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  background: #1a1a2e;
+  border: 1px solid #2a2a40;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 10px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.bll-palette-item:hover {
+  border-color: #4488ff;
+  background: rgba(68, 136, 255, 0.08);
+}
+
+.bll-palette-icon {
+  font-size: 16px;
+}
+
+.bll-palette-label {
+  text-align: center;
+  line-height: 1.1;
+}
+
+.bll-palette-devlist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.bll-palette-dev {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  background: #141422;
+  border: 1px solid #222;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 11px;
+  text-align: left;
+  transition: border-color 0.15s;
+}
+
+.bll-palette-dev:hover {
+  border-color: #4488ff;
+}
+
+.bll-palette-dev-icon {
+  font-size: 12px;
+}
+
+.bll-palette-dev-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bll-palette-more {
+  font-size: 10px;
+  color: #666;
+  text-align: center;
+  padding: 2px;
+}
+
+/* ─── Layout Canvas ──────────────────────────────────────────── */
+
+.bll-canvas {
+  flex: 1;
+  min-width: 0;
+}
+
+.bll-canvas .react-flow__background {
+  background: #0e0e1a !important;
+}
+
+/* ─── Device Node ────────────────────────────────────────────── */
+
+.bll-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  background: #1a1a2e;
+  border: 2px solid #333;
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.bll-node:hover {
+  box-shadow: 0 0 12px rgba(68, 136, 255, 0.3);
+}
+
+.bll-node--ok { border-color: #22c55e; }
+.bll-node--warning { border-color: #eab308; box-shadow: 0 0 8px rgba(234, 179, 8, 0.3); }
+.bll-node--alarm { border-color: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); animation: bll-pulse-alarm 1.5s ease-in-out infinite; }
+.bll-node--disconnected { border-color: #6b7280; opacity: 0.7; }
+.bll-node--disabled { border-color: #374151; opacity: 0.5; }
+
+@keyframes bll-pulse-alarm {
+  0%, 100% { box-shadow: 0 0 6px rgba(239, 68, 68, 0.3); }
+  50% { box-shadow: 0 0 16px rgba(239, 68, 68, 0.6); }
+}
+
+.bll-node-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bll-node-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.bll-node-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #e0e0e0;
+  white-space: nowrap;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bll-node-sublabel {
+  font-size: 9px;
+  color: #888;
+}
+
+.bll-node-alarm-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 12px;
+  background: #ef4444;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 10px;
+}
+
+.bll-handle {
+  width: 8px;
+  height: 8px;
+  background: #4488ff;
+  border: 2px solid #1a1a2e;
+}
+
+/* ─── Annotation & Group Nodes ───────────────────────────────── */
+
+.bll-beam-segment {
+  background: linear-gradient(90deg, transparent, #4488ff33, transparent);
+  border-top: 2px solid #4488ff;
+  border-bottom: 2px solid #4488ff;
+}
+
+.bll-annotation {
+  color: #aaa;
+  background: transparent;
+  padding: 2px 6px;
+  font-style: italic;
+}
+
+.bll-group {
+  background: rgba(68, 136, 255, 0.04);
+  border: 2px dashed #333;
+  border-radius: 10px;
+  position: relative;
+}
+
+.bll-group-label {
+  position: absolute;
+  top: -10px;
+  left: 12px;
+  font-size: 11px;
+  color: #888;
+  background: #0e0e1a;
+  padding: 0 6px;
+}
+
+/* ─── Legend ──────────────────────────────────────────────────── */
+
+.bll-legend {
+  display: flex;
+  gap: 10px;
+  padding: 4px 8px;
+  background: rgba(0,0,0,0.7);
+  border-radius: 6px;
+  font-size: 11px;
+  color: #aaa;
+}
+
+.bll-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.bll-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* ─── Detail Modal (layout specific) ─────────────────────────── */
+
+.bll-detail-modal {
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+}

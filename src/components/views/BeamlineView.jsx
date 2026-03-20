@@ -6,6 +6,8 @@ import { getWidgetComponent as getWidgetComp, familyToWidgetType } from '../../w
 import WidgetFrame from '../../widgets/WidgetFrame.jsx';
 import { deviceToWidgetConfig } from '../../models/dashboard.js';
 import { groupDevicesBy } from '../../models/device.js';
+import BeamlineEditor from './BeamlineEditor.jsx';
+import BeamlineLayout from './BeamlineLayout.jsx';
 
 const FAMILY_ICONS = { cam: '📷', mot: '⚙', bpm: '📡', mag: '🧲', vac: '💨', generic: '🔧' };
 const FAMILY_COLORS = { cam: '#3b82f6', mot: '#f59e0b', bpm: '#10b981', mag: '#8b5cf6', vac: '#ec4899', generic: '#6b7280' };
@@ -29,15 +31,19 @@ export default function BeamlineView() {
       <div className="view-toolbar">
         <span className="view-toolbar-title">Beamline Overview</span>
         <div className="toolbar-controls">
-          <select className="filter-select" value={selectedZone} onChange={(e) => setSelectedZone(e.target.value)}>
-            <option value="">All zones ({allZones.length})</option>
-            {allZones.map((z) => (
-              <option key={z} value={z}>{z} ({(grouped[z] || []).length})</option>
-            ))}
-          </select>
+          {viewMode !== 'editor' && viewMode !== 'layout' && (
+            <select className="filter-select" value={selectedZone} onChange={(e) => setSelectedZone(e.target.value)}>
+              <option value="">All zones ({allZones.length})</option>
+              {allZones.map((z) => (
+                <option key={z} value={z}>{z} ({(grouped[z] || []).length})</option>
+              ))}
+            </select>
+          )}
           <div className="toolbar-toggle-group">
             <button className={`toolbar-btn ${viewMode === 'summary' ? 'active' : ''}`} onClick={() => setViewMode('summary')}>≡ Summary</button>
             <button className={`toolbar-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')}>⊞ Widgets</button>
+            <button className={`toolbar-btn ${viewMode === 'layout' ? 'active' : ''}`} onClick={() => setViewMode('layout')}>🗺 Layout</button>
+            <button className={`toolbar-btn ${viewMode === 'editor' ? 'active' : ''}`} onClick={() => setViewMode('editor')}>📝 Editor</button>
           </div>
           {viewMode === 'grid' && (
             <button className={`toolbar-btn ${editMode ? 'active' : ''}`} onClick={() => setEditMode((e) => !e)}>
@@ -47,17 +53,23 @@ export default function BeamlineView() {
         </div>
       </div>
 
-      <div className="view-content beamline-zones">
-        {displayZones.map((zone) => {
-          const zoneDevices = grouped[zone] || [];
-          if (zoneDevices.length === 0) return null;
-          return viewMode === 'summary' ? (
-            <ZoneSummaryCard key={zone} zone={zone} devices={zoneDevices} onSelectZone={() => { setSelectedZone(zone); setViewMode('grid'); }} />
-          ) : (
-            <ZoneGridSection key={zone} zone={zone} devices={zoneDevices} client={pvwsClient} editMode={editMode} />
-          );
-        })}
-      </div>
+      {viewMode === 'editor' ? (
+        <BeamlineEditor />
+      ) : viewMode === 'layout' ? (
+        <BeamlineLayout />
+      ) : (
+        <div className="view-content beamline-zones">
+          {displayZones.map((zone) => {
+            const zoneDevices = grouped[zone] || [];
+            if (zoneDevices.length === 0) return null;
+            return viewMode === 'summary' ? (
+              <ZoneSummaryCard key={zone} zone={zone} devices={zoneDevices} onSelectZone={() => { setSelectedZone(zone); setViewMode('grid'); }} />
+            ) : (
+              <ZoneGridSection key={zone} zone={zone} devices={zoneDevices} client={pvwsClient} editMode={editMode} />
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -36,6 +36,9 @@ export default function AppShell({ children, theme, onToggleTheme }) {
           <NavLink to="/beamline" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
             🔬 Beamline
           </NavLink>
+          <NavLink to="/layout" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+            🗺 Layout
+          </NavLink>
           <span className="nav-divider" />
           <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
             ⚙ Settings

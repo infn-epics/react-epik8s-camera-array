@@ -7,6 +7,7 @@ import DashboardView from './components/views/DashboardView.jsx';
 import CameraView from './components/views/CameraView.jsx';
 import InstrumentationView from './components/views/InstrumentationView.jsx';
 import BeamlineView from './components/views/BeamlineView.jsx';
+import BeamlineLayoutView from './components/views/BeamlineLayout.jsx';
 import SettingsView from './components/views/SettingsView.jsx';
 
 function AppRoutes() {
@@ -43,6 +44,7 @@ function AppRoutes() {
           <Route path="/cameras" element={<CameraView />} />
           <Route path="/instrumentation" element={<InstrumentationView />} />
           <Route path="/beamline" element={<BeamlineView />} />
+          <Route path="/layout" element={<BeamlineLayoutView />} />
           <Route path="/settings" element={<SettingsView />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
