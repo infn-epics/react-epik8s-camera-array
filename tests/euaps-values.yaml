@@ -1,0 +1,1373 @@
+# created automatically epik8s-gen (0.4.3) at 2024-11-11
+beamline: euaps
+namespace: euaps
+epik8namespace: "k8sda.lnf.infn.it"
+ingressClassName: "nginx"
+targetRevision: main ## chart default revision
+serviceAccountName: default
+argocdProject: "euaps"
+http_proxy: "http://squid.lnf.infn.it:3128"
+https_proxy: "http://squid.lnf.infn.it:3128"
+no_proxy: "localhost,127.0.0.1,::1,10.0.0.0/8,192.168.0.0/16,.svc,.svc.cluster.local,.lnf.infn.it"
+
+## starting point
+giturl: https://baltig.infn.it/lnf-da-control/epik8s-euaps.git
+gitrev: devel
+epik8s_secrets: epik8s-secret
+
+baseIp: "10.43.248.0/22" ## valid service IPs are 10.43.248.1 to 10.43.251.254
+startIp: 1 # 2
+openshift: false
+
+## iocDefaults: per-template defaults merged into each IOC.
+## IOC-specific values always override these. 'template' key on each IOC is the lookup key.
+iocDefaults:
+  motor:
+    pva: true
+    charturl: 'https://github.com/infn-epics/ioc-chart.git'
+    autosync: false
+    devgroup: mot
+    opi: "motor-asyn/Motor_Main.bob"
+  adcamera:
+    charturl: 'https://github.com/infn-epics/ioc-chart.git'
+    devgroup: cam
+    devtype: camera
+    pva: true
+    enable_ingress: true
+    autosync: false
+    resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+    service:
+      http:
+        enable: true
+        port: 8082
+    stream_enable: true
+    iocprefix: "EUAPS:CAM"
+    env:
+        - name: "EPICS_CAS_INTF_ADDR_LIST"
+          value: "0.0.0.0"   ## bind CA server on all interfaces (required when multus is present)
+        - name: "EPICS_PVAS_INTF_ADDR_LIST"
+          value: "0.0.0.0"   ## bind PVA server on all interfaces (required when multus is present)
+    iocparam:
+        - name: "overlay_enable"
+          value: true
+        - name: "stats_enable"
+          value: true
+        - name: "proc_enable"
+          value: true
+        - name: "tiff_enable"
+          value: true
+        - name: "roi_enable"
+          value: true
+        - name: "stdarray_enable"
+          value: false
+    
+
+epicsConfiguration:
+  name: "epics-configuration" # name of existing configMap that set CA parameters
+  address_list: "" ## modulator
+  max_array_bytes: "10000000"
+  # conn_tmo: 120
+  services:
+    pvagateway:
+      asset: "Gateway for PVA external connections"
+      charturl: 'https://baltig.infn.it/epics-containers/ca-gateway-chart.git'
+      template: "pvagateway"
+      desc: "EPICS PVA Gateway "
+      ingress:
+        enabled: false
+      loadbalancer: 192.168.108.230
+      nodeSelector:
+        lb-network-access: vlan-108
+      replicaCount: 1
+      auto_security: true
+      autosync: true ## restart automatically on changes
+      
+      resources:
+            limits:
+              cpu: 999m
+              memory: 2Gi
+            requests:
+              cpu: 400m
+              memory: 500Mi
+    gateway:
+      asset: "Gateway for CA external connections"
+      charturl: 'https://baltig.infn.it/epics-containers/ca-gateway-chart.git'
+      template: "gateway"
+      # image:
+      #   tag: "v26.3.8b1"
+      desc: "EPICS CA Gateway EPICS_CA_ADDR_LIST to access EUAPS IOCs"
+      ingress:
+        enabled: false
+      loadbalancer: 192.168.108.231
+      nodeSelector:
+        lb-network-access: vlan-108
+      replicaCount: 1
+      auto_security: true
+      params:
+        # - name: "ignore_addr_list"
+        #   value: "10.42.17.0"
+        - name: "connect_timeout"
+          value: 5
+        - name: "inactive_timeout"
+          value: 300
+        - name: "dead_timeout"
+          value: 60
+        - name: "disconnect_timeout"
+          value: 10
+        - name: "reconnect_inhibit"
+          value: 60
+      autosync: true ## restart automatically on changes
+      resources:
+            limits:
+              cpu: 999m
+              memory: 2Gi
+            requests:
+              cpu: 400m
+              memory: 1Gi
+    archiver:
+      asset: "Epics PV Archiver"
+      charturl: 'https://baltig.infn.it/epics-containers/epics-archiver-chart.git'
+      desc: "EPICS Archiver Appliance for EUAPS"
+      path: "/mgmt/ui/index.html"
+      replicaCount: 1
+      serviceAccount:
+        create: false
+        name: default
+      storage:
+        lts:
+          path: /storage/lts
+          size: 10Gi
+          claim: ""
+          accessMode: ReadWriteOnce
+        mts:
+          path: /storage/mts
+          size: 10Gi
+          claim: ""
+          accessMode: ReadWriteOnce
+        sts:
+          path: /storage/sts
+          size: 5Gi
+          claim: ""
+          accessMode: ReadWriteOnce
+        logs:
+          path: /storage/logs
+          size: 5Gi
+          claim: ""
+          accessMode: ReadWriteOnce
+      mysql:
+            host: mysql
+            dbname: arcappl
+            user: arcappl
+            pass: arcappl
+      enable_ingress: true
+      securityContext:
+            privileged: true
+            runAsUser: 0
+            runAsGroup: 1000
+      resources:
+            limits:
+              cpu: 999m
+              memory: 6Gi
+            requests:
+              cpu: 100m
+              memory: 4Gi
+      autosync: true ## restart automatically on changes
+      usegateway: true
+    console:
+        asset: "Ubuntu WEB Console running Phoebus"
+        replicaCount: 1
+        charturl: https://baltig.infn.it/epics-containers/epics-console-chart.git
+        enable_ingress: true
+        gitpath: opi
+        resources:
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+            requests:
+              cpu: 1000m
+              memory: 1Gi
+        gitRepoConfig:
+          url: https://baltig.infn.it/lnf-da-control/epik8s-euaps.git
+          path: opi
+          branch: devel
+        autosync: false ## restart automatically on changes
+        usegateway: true
+    notebook:
+      asset: "Jupyther notebook enabled to access EPIK8s resources"
+      charturl: 'https://baltig.infn.it/epics-containers/jupyter-control-notebook-chart.git'
+      replicaCount: 1
+      gitRepoConfig:
+        url: https://baltig.infn.it/lnf-da-control/ecs-jupyter-control.git
+        path: .
+        branch: main
+        init: true
+      dataVolume:
+          claim:  ## an existing claim or empty will create a new one
+          size: 1Gi ## size of the claim
+          accessMode: ReadWriteOnce
+      enable_ingress: true
+      usegateway: true
+      autosync: false ## restart automatically on changes
+      pip:
+        - bluesky
+        - infn-ophyd-hal
+    pvws:
+      asset: "Phoebus WEB (experimental)"
+      loglevel: DEBUG
+      charturl: https://github.com/infn-epics/phoebus-services-chart.git
+      phoebusservice: "pvws"
+      auto_security: true
+      enable_ingress: true
+      autosync: false ## restart automatically on changes
+      env:
+        - name: "PV_WRITE_SUPPORT"
+          value: "true"
+      service:
+        loglevel: "INFO"
+      usegateway: true
+    dbwr:
+      asset: "PV REST server (experimental)"
+      loglevel: DEBUG
+      charturl: https://github.com/infn-epics/phoebus-services-chart.git
+      phoebusservice: "dbwr"
+      auto_security: true
+      enable_ingress: true
+      autosync: false ## restart automatically on changes
+      service:
+        loglevel: "INFO"
+      usegateway: true
+      gitRepoConfig:
+          url: https://baltig.infn.it/lnf-da-control/sparc-epics-opi.git
+          path: .
+      pvws:
+        host: euaps-pvws.k8sda.lnf.infn.it
+        port: 80
+    
+
+   ## olog, scanserver,channelfinder, saverestore
+    ## require backend activated
+    mysql: 
+      asset: "Mysql(bitnami) Service primarly used for Epics Archiver"
+      name: mysql
+      charturl: registry-1.docker.io/bitnamicharts
+      targetRevision: '9.21.1'
+      chart: mysql
+      image:
+        repository: bitnamilegacy/mysql
+      auth:
+          rootPassword: "arcappl"
+          createDatabase: true
+          database: "arcappl"
+          username: "arcappl"
+          password: "arcappl"
+      primary:
+        persistence:
+          storageClass: nfs20t
+          size: 10Gi
+      serviceAccount:
+        create: false
+        name: "default"
+
+    
+    camarray:
+      name: "camarray"
+      asset: "EPIK8s Camera Array - NxM grid of EPICS camera streams"
+      image:
+        repository: "ghcr.io/infn-epics/phoebus-olog-web-client-node-server"
+        tag: "latest"
+        pullPolicy: "Always"
+      charturl: https://baltig.infn.it/epics-containers/generic-application-chart.git
+      enable_ingress: true
+      disable: false
+      autosync: false
+      service:
+        port: 3000
+      gitRepoConfig:
+        url: https://github.com/infn-epics/react-epik8s-camera-array.git
+        path: .
+        branch: epik8s-react
+        init: true
+      pvws:
+        host: euaps-pvws-http.k8sda.lnf.infn.it
+        port: 80
+      exec: |
+        cd /config
+        echo "=== Building react-epik8s-camera-array ==="
+        cp /etc/epik8s-beamline.yaml public/values.yaml
+        npm ci
+        npm run build
+        echo "=== Serving camera array ==="
+        serve -l 3000 -s dist
+
+    docs:
+      name: "docs"
+      image:
+        repository: "nginx:alpine"
+        pullPolicy: "Always"
+      charturl: https://baltig.infn.it/epics-containers/generic-application-chart.git
+      enable_ingress: true
+      disable: false ##
+      secure: true
+      service:
+        port: 80
+      exec: {} ## default
+      nfsMounts:
+        - name: httpsrv-nfs
+          mountPath: /usr/share/nginx/html
+          server: 192.168.197.157
+          path: /data_epik8s/euaps/Documents/public
+    
+    
+    
+  iocs:
+
+    - name: "pollux-chain-fp-01"
+      asset: "" # TODO add when available
+      template: "motor"
+      devtype: pollux
+      iocprefix: "EUAPS:FPRCK1:W:CTR" 
+      zones: "FP"
+      debug: 2
+      iocparam:
+        - name: "server"
+          value: scflameprmoxa001.lnf.infn.it
+        - name: "port"
+          value: "4001"
+      devices:
+          - name: "FP1-HMN-01"
+            axid: 1
+            dllm: 0
+            dhlm: 12
+            home: -1
+            start: 10
+            velo: 1
+            mres: 0.0001
+            prec: 4
+            zones: "FP1"
+
+          - name: "FP1-VMN-01"
+            axid: 2
+            dllm: 0
+            dhlm: 12
+            home: -1
+            start: 10
+            velo: 1
+            mres: 0.0001
+            prec: 4
+            zones: "FP1"
+
+          - name: "FP2-HMN-01"
+            axid: 3
+            dllm: 0
+            dhlm: 12
+            home: -1
+            start: 10
+            velo: 1
+            mres: 0.0001
+            prec: 4
+            zones: "FP2"
+          - name: "FP2-VMN-01"
+            axid: 4
+            dllm: 0
+            dhlm: 12
+            home: -1
+            start: 10
+            velo: 1
+            mres: 0.0001
+            prec: 4
+            zones: "FP2"
+          - name: "FP4-HMN-01"
+            axid: 5
+            dllm: 0
+            dhlm: 12
+            home: -1
+            start: 10
+            velo: 1
+            mres: 0.0001
+            prec: 4
+            zones: "FP4"
+          - name: "FP4-VMN-01"
+            axid: 6
+            dllm: 0
+            dhlm: 12
+            home: -1
+            start: 10
+            velo: 1
+            mres: 0.0001
+            prec: 4
+            zones: "FP4"
+
+    - name: "pollux-chain-fp-02"
+      asset: "" # TODO add when available
+      template: "motor"
+      devtype: pollux
+      iocprefix: "EUAPS:FPRCK1:W:CTR" 
+      zones: "FP"
+      debug: 1
+      iocparam:
+        - name: "server"
+          value: scflameprmoxa001.lnf.infn.it
+        - name: "port"
+          value: "4002"
+      devices:
+          - name: "FP3-HMN-01"
+            axid: 7
+            dllm: 0
+            dhlm: 12
+            home: 1
+            start: 10
+            velo: 1
+            zones: "FP3"
+          - name: "FP3-VMN-01"
+            axid: 8
+            dllm: 0
+            dhlm: 12
+            home: 1
+            start: 10
+            velo: 1
+            zones: "FP3"
+          - name: "FP5-HMN-01"
+            axid: 9
+            dllm: 0
+            dhlm: 12
+            home: 1
+            start: 10
+            velo: 1
+            zones: "FP5"
+          - name: "FP5-VMN-01"
+            axid: 10
+            dllm: 0
+            dhlm: 12
+            home: 1
+            start: 10
+            velo: 1
+            zones: "FP5"     
+
+    - name: "pollux-chain-fi-01"
+      asset: "" # TODO add when available
+      template: "motor"
+      devtype: pollux
+      iocprefix: "EUAPS:FIRCK2:W:CTR" # TODO check  
+      zones: "FI"
+      iocparam:
+        - name: "server"
+          value: scflameprmoxa001.lnf.infn.it # TODO add FI moxa when available and check port
+        - name: "port"
+          value: "4001"
+      devices:
+          - name: "001"
+            axid: 1
+            dllm: 0
+            dhlm: 500
+            home: 1
+            start: 10
+            velo: 1
+          - name: "002"
+            axid: 2
+            dllm: 0
+            dhlm: 1000
+            home: 1
+            start: 10
+            velo: 1
+          - name: "003"
+            axid: 3
+            dllm: 0
+            dhlm: 24
+            home: 1
+            start: 10
+            velo: 1
+          - name: "004"
+            axid: 4
+            dllm: 0
+            dhlm: 24
+            home: 1
+            start: 10
+            velo: 1
+          - name: "005"
+            axid: 5
+            dllm: 0
+            dhlm: 24
+            home: 1
+            start: 10
+            velo: 1
+          - name: "006"
+            axid: 6
+            dllm: 0
+            dhlm: 24
+            home: 1
+            start: 10
+            velo: 1
+          - name: "007"
+            axid: 7
+            dllm: 0
+            dhlm: 24
+            home: 1
+            start: 10
+            velo: 1
+          - name: "008"
+            axid: 8
+            dllm: 0
+            dhlm: 24
+            home: 1
+            start: 10
+            velo: 1          
+
+    - name: "pollux-chain-fi-02"
+      asset: "" # TODO add when available
+      template: "motor"
+      devtype: pollux
+      iocprefix: "EUAPS:FIRCK2:W:CTR" # TODO check
+      
+      zones: "FI"
+      iocparam:
+        - name: "server"
+          value: scflameprmoxa001.lnf.infn.it # TODO add when available and check port
+        - name: "port"
+          value: "4002"
+      devices:
+          - name: "009"
+            axid: 1
+            dllm: 0
+            dhlm: 24
+            home: 1
+            start: 10
+            velo: 1
+          - name: "010"
+            axid: 2
+            dllm: 0
+            dhlm: 24
+            home: 1
+            start: 10
+            velo: 1
+          - name: "011"
+            axid: 3
+            dllm: 0
+            dhlm: 24
+            home: 1
+            start: 10
+            velo: 1
+          - name: "012"
+            axid: 4
+            dllm: 0
+            dhlm: 24
+            home: 1
+            start: 10
+            velo: 1
+          - name: "013"
+            axid: 5
+            dllm: 0
+            dhlm: 24
+            home: 1
+            start: 10
+            velo: 1
+          - name: "014"
+            axid: 6
+            dllm: 0.151111
+            dhlm: 24
+            home: 1
+            start: 10
+            velo: 1
+
+    - name: "mercury-fp-01"
+      asset: "" # TODO add when available
+      template: "motor"
+      devtype: mercury
+      iocprefix: "EUAPS:FPRCK1:W:CTR"
+      
+      zones: "FP"
+
+      iocparam:
+        - name: "server"
+          value: scflameprmoxa001.lnf.infn.it
+        - name: "port"
+          value: "4003"  ## TODO check/update
+      devices:
+          - name: "011"
+            axid: 1
+            dllm: 0   ## TODO check/update
+            dhlm: 25  ## TODO check/update
+            home: -1
+            start: 10
+            velo: 1   ## TODO check/update
+            mres: 0.0001    ## TODO check/update
+            prec: 4
+
+    - name: "mercury-fp-02"
+      asset: "" # TODO add when available
+      template: "motor"
+      devtype: mercury
+      iocprefix: "EUAPS:FIRCK2:W:CTR"
+      
+      zones: "FP"
+
+      iocparam:
+        - name: "server"
+          value: scflameprmoxa001.lnf.infn.it
+        - name: "port"
+          value: "4004"  ## TODO check/update
+      devices:
+          - name: "012"
+            axid: 1
+            dllm: 0   ## TODO check/update
+            dhlm: 25  ## TODO check/update
+            home: -1
+            start: 10
+            velo: 1
+            mres: 0.0001  ## TODO check/update
+            prec: 4
+
+    - name: "mercury-fi-01"
+      asset: "" # TODO add when available
+      template: "motor"
+      devtype: mercury-on-vt80
+      iocprefix: "EUAPS:FIRCK2:W:CTR"
+      
+      zones: "FP"
+
+      iocparam:
+        - name: "server"
+          value: scflameprmoxa001.lnf.infn.it
+        - name: "port"
+          value: "4001"  ## TODO check/update
+      devices:
+          - name: "023"
+            axid: 1
+            dllm: 0   
+            dhlm: 200  
+            home: -1
+            start: 10
+            velo: 5
+            mres: 0.0000024414
+            prec: 4
+
+    - name: "mercury-fi-02"
+      asset: "" # TODO add when available
+      template: "motor"
+      devtype: mercury
+      iocprefix: "EUAPS:FIRCK2:W:CTR"
+      
+      zones: "FP"
+
+      iocparam:
+        - name: "server"
+          value: scflameprmoxa001.lnf.infn.it
+        - name: "port"
+          value: "4002"  ## TODO check/update
+      devices:
+          - name: "024"
+            axid: 1
+            dllm: 0   
+            dhlm: 200
+            home: -1
+            start: 10
+            velo: 1
+            mres: 0.0000024414
+            prec: 4
+
+    - name: "mercury-fi-03"
+      asset: "" # TODO add when available
+      template: "motor"
+      devtype: mercury
+      iocprefix: "EUAPS:FIRCK2:W:CTR"
+      
+      zones: "FP"
+
+      iocparam:
+        - name: "server"
+          value: scflameprmoxa001.lnf.infn.it
+        - name: "port"
+          value: "4003"  ## TODO check/update
+      devices:
+          - name: "025"
+            axid: 1
+            dllm: 0   ## TODO check/update
+            dhlm: 25  ## TODO check/update
+            home: -1
+            start: 10
+            velo: 1
+            mres: 0.0001  ## TODO check/update
+            prec: 4
+
+    - name: "thor-bbb-fp-01"
+      asset: "" # TODO add when available
+      template: "motor"
+      devtype: thorlabs
+      motor:
+        motorType: kim
+      iocprefix: "EUAPS:FP7:W:CTR" 
+      
+      zones: "FP7"
+      iocparam:
+        - name: "server"
+          value: plcgbbrhor002.lnf.infn.it
+        - name: "port"
+          value: "4001"
+      devices:
+          - name: "FP7-HPB-01"
+            axid: 0
+            dllm: -1000000.0
+            dhlm: 1000000.0
+            home: 1
+            velo: 500
+            mres: 1
+          - name: "FP7-VPB-01"
+            axid: 1
+            dllm: -1000000.0
+            dhlm: 1000000.0
+            home: 1
+            velo: 500
+            mres: 1
+
+    - name: "thor-bbb-fi-01"
+      asset: "" # TODO add when available
+      template: "motor"
+      devtype: thorlabs
+      motor:
+        motorType: kim
+      iocprefix: "EUAPS:FI1:W:CTR" 
+      
+      zones: 
+        - FI
+        - FI1
+      iocparam:
+        - name: "server"
+          value: plcgbbrhor001.lnf.infn.it 
+        - name: "port"
+          value: "4003"  # TODO check
+      devices:
+          - name: "FI1-HPB-01"
+            axid: 0
+            dllm: -1000000.0
+            dhlm: 1000000.0
+            home: 1
+            velo: 500
+            mres: 1
+          - name: "FI1-VPB-01"
+            axid: 1
+            dllm: -1000000.0
+            dhlm: 1000000.0
+            home: 1
+            velo: 500
+            mres: 1
+          
+    
+    - name: "thor-bbb-fi-02"
+      asset: "https://servicedesk.infn.it/secure/ObjectSchema.jspa?id=40&typeId=3798&objectId=145552" 
+      template: "motor"
+      devtype: thorlabs
+      motor:
+        motorType: kim
+      iocprefix: "EUAPS:FI2:W:CTR" 
+      
+      zones: 
+        - FI
+        - FI2
+      iocparam:
+        - name: "server"
+          value: plcgbbrhor001.lnf.infn.it # TODO check
+        - name: "port"
+          value: "4004"  # TODO check
+      devices:
+          - name: "FI2-HPB-01"
+            axid: 0
+            dllm: -1000000.0
+            dhlm: 1000000.0
+            home: 1
+            velo: 500
+            mres: 1
+          - name: "FI2-VPB-01"
+            axid: 1
+            dllm: -1000000.0
+            dhlm: 1000000.0
+            home: 1
+            velo: 500
+            mres: 1
+          - name: "FI2-HPB-02"
+            axid: 2
+            dllm: -1000000.0
+            dhlm: 1000000.0
+            home: 1
+            velo: 500
+            mres: 1
+          - name: "FI2-VPB-02"
+            axid: 3
+            dllm: -1000000.0
+            dhlm: 1000000.0
+            home: 1
+            velo: 500
+            mres: 1
+          
+    - name: "thor-bbb-fi-03"
+      asset: "" # TODO add when available
+      template: "motor"
+      devtype: thorlabs
+      motor:
+        motorType: kim
+      iocprefix: "EUAPS:FI34:W:CTR" 
+      
+      zones: 
+        - FI
+      iocparam:
+        - name: "server"
+          value: plcgbbrhor001.lnf.infn.it # TODO check
+        - name: "port"
+          value: "4001"  # TODO check
+      devices:
+          - name: "FI4-HPB-01"
+            axid: 0
+            dllm: -1000000.0
+            dhlm: 1000000.0
+            home: 1
+            velo: 500
+            mres: 1
+            zones: FI4
+          - name: "FI4-VPB-01"
+            axid: 1
+            dllm: -1000000.0
+            dhlm: 1000000.0
+            home: 1
+            velo: 500
+            mres: 1
+            zones: FI4
+
+          - name: "FI5-HPB-01"
+            axid: 2
+            dllm: -1000000.0
+            dhlm: 1000000.0
+            home: 1
+            velo: 500
+            mres: 1
+            zones: FI5
+          - name: "FI5-VPB-01"
+            axid: 3
+            dllm: -1000000.0
+            dhlm: 1000000.0
+            home: 1
+            velo: 500
+            mres: 1
+            zones: FI5
+            
+          
+    - name: "thor-bbb-fi-04"
+      asset: "" # TODO add when available
+      template: "motor"
+      devtype: thorlabs
+      motor:
+        motorType: kim
+      iocprefix: "EUAPS:FI7:W:CTR" 
+      
+      zones: 
+        - FI
+        - FI7
+      iocparam:
+        - name: "server"
+          value: plcgbbrhor001.lnf.infn.it
+        - name: "port"
+          value: "4002"
+      devices:
+          - name: "FI7-HPB-01"
+            axid: 0
+            dllm: -1000000.0
+            dhlm: 1000000.0
+            home: 1
+            velo: 500
+            mres: 1
+          - name: "FI7-VPB-01"
+            axid: 1
+            dllm: -1000000.0
+            dhlm: 1000000.0
+            home: 1
+            velo: 500
+            mres: 1
+
+    # - name: "thor-test"
+    #   asset: "" # TODO add when available
+    #   charturl: 'https://github.com/infn-epics/ioc-chart.git'
+    #   template: "motor"
+    #   autosync: false ## restart automatically on changes
+    #   devtype: thorlabs
+    #   motor:
+    #     motorType: kim
+    #   devgroup: mot
+    #   opi: "motor-asyn/Motor_Main.bob" # TODO update when available
+    #   iocprefix: "EUAPS:PIEZO:TEST"
+    #   iocroot: "MOT:001"
+    #   zones: "FI"
+    #   iocparam:
+    #     - name: "server"
+    #       value: "plcgbbrhor001.lnf.infn.it" # TODO set hostname
+    #     - name: "port"
+    #       value: "4001"  
+    #   devices:
+    #       - name: "MOT1"
+    #         axid: 0
+    #       - name: "MOT2"
+    #         axid: 1
+    #       - name: "MOT3"
+    #         axid: 2
+    #       - name: "MOT4"
+    #         axid: 3
+
+## 90:59:AF:5C:EA:3B plcgbbrhor003 sparcctrl02 (registrata come 192.168.143.35)
+## 78:A5:04:C1:79:58 plcgbbthor002 sparcctrl02 (registrata come 192.168.143.44) 
+## 78:A5:04:E2:5D:E0 plcgbbthor001 sparcctrl02 (ma e' registrata con 192.168.143.45)
+# # pollux test config
+#     - name: "pollux-ctrl01"
+#       asset: "https://confluence.infn.it/x/JIBnLw"
+#       charturl: 'https://github.com/infn-epics/ioc-chart.git'
+#       template: "motor"
+#       autosync: false ## restart automatically on changes
+#       devtype: pollux
+#       devgroup: mot
+#       opi: "motor-asyn/Motor_Main.bob"
+#       iocprefix: "EUAPS:CTRL"
+#       iocroot: "FPMMIR"
+#       machine: "pluto:pocfewf::fwef-fewfwe--fwwtet"
+#       zones: "FP"
+#       iocparam:
+#         - name: "server"
+#           value: "scflameprmoxa001.lnf.infn.it"
+#         - name: "port"
+#           value: "4001"
+#       devices:
+#           - name: "HMOT01"
+#             axid: 7
+#             dllm: -25
+#             dhlm: 25
+#             home: 1
+#             start: 10
+#             velo: 1
+#             poi:
+#             - name: "YAG"
+#               value: 5
+#             - name: "calibration"
+#               value: 10
+#             - name: "mirror"
+#               value: 12
+              
+#           - name: "VMOT01"
+#             axid: 8
+#             dllm: -25
+#             dhlm: 25
+#             home: 1
+#             start: 10
+#             velo: 1
+    
+    - name: "pollux-4-ctrl01"
+      asset: "https://confluence.infn.it/x/JIBnLw"
+      charturl: 'https://baltig.infn.it/epics-containers/ioc-chart.git'
+      template: "motor"
+      autosync: false ## restart automatically on changes
+      devtype: pollux
+      devgroup: mot
+      opi: "asyn/motorx.bob"
+      iocprefix: "EUAPS:CTRL"
+      iocroot: "FPMMIR"
+      machine: "pluto:pocfewf::fwef-fewfwe--fwwtet"
+      zones: "FP"
+      iocparam:
+        - name: "server"
+          value: "scflameprmoxa001.lnf.infn.it"
+        - name: "port"
+          value: "4001"
+      devices:
+          - name: "HMOT01"
+            axid: 7
+            dllm: -25
+            dhlm: 25
+            home: 1
+            start: 10
+            velo: 1
+            poi:
+            - name: "YAG"
+              value: 5
+            - name: "calibration"
+              value: 10
+            - name: "mirror"
+              value: 12
+              
+          - name: "VMOT01"
+            axid: 8
+            dllm: -25
+            dhlm: 25
+            home: 1
+            start: 10
+            velo: 1
+
+          - name: "HMOT02"
+            axid: 7
+            dllm: -25
+            dhlm: 25
+            home: 1
+            start: 10
+            velo: 1
+            poi:
+            - name: "YAG"
+              value: 5
+            - name: "calibration"
+              value: 10
+            - name: "mirror"
+              value: 12
+              
+          - name: "VMOT02"
+            axid: 8
+            dllm: -25
+            dhlm: 25
+            home: 1
+            start: 10
+            velo: 1
+    - name: "pollux-6-ctrl01"
+      asset: "https://confluence.infn.it/x/JIBnLw"
+      charturl: 'https://baltig.infn.it/epics-containers/ioc-chart.git'
+      template: "motor"
+      autosync: false ## restart automatically on changes
+      devtype: pollux
+      devgroup: mot
+      opi: "asyn/motorx.bob"
+      iocprefix: "EUAPS:CTRL"
+      iocroot: "FPMMIR"
+      machine: "pluto:pocfewf::fwef-fewfwe--fwwtet"
+      zones: "FP"
+      iocparam:
+        - name: "server"
+          value: "scflameprmoxa001.lnf.infn.it"
+        - name: "port"
+          value: "4001"
+      devices:
+          - name: "HMOT01"
+
+            axid: 7
+            dllm: -25
+            dhlm: 25
+            home: 1
+            start: 10
+            velo: 1
+            poi:
+            - name: "YAG"
+              value: 5
+            - name: "calibration"
+              value: 10
+            - name: "mirror"
+              value: 12
+              
+          - name: "VMOT01"
+            axid: 8
+            dllm: -25
+            dhlm: 25
+            home: 1
+            start: 10
+            velo: 1
+    - name: "camerasim"
+      asset: "https://servicedesk.infn.it/secure/ObjectSchema.jspa?id=44&typeId=2748&objectId=126655"
+      template: "adcamera"
+      devtype: camerasim
+
+      iocinit:
+        - name: "AcquirePeriod"
+          value: "1"
+        - name: "FrameRate"
+          value: "1"
+        - name: "FrameRateEnable"
+          value: "Yes"
+      
+      devices:
+        - name: "SIM01"
+          width: 1900
+          height: 1200
+          iocinit:
+          - name: "AcquirePeriod"
+            value: "1"
+          - name: "Gain"
+            value: "255"
+          - name: "SimMode"
+            value: "Peaks"
+          - name: "PeakStartX"
+            value: "250"
+          - name: "PeakStartY"
+            value: "200"
+          - name: "PeakWidthX"
+            value: "70"
+          - name: "PeakWidthY"
+            value: "50"
+          - name: "PeakVariation"
+            value: "10"
+          - name: "Stream1:EnableCallbacks"
+            value: "1"
+
+        
+
+    - name: "fi5-cam-bas-002"
+      template: "adcamera"
+      networks:
+        - name: "vlan-115"
+          annotation: "euaps-cams"
+      devices:
+        - name: "FI5CAM02"
+          id: 192.168.115.32 # serial 40419637, cceuapscam12, MAC 00:30:53:35:E6:C1
+          buffers: 500
+          iocinit:
+          - name: "AcquirePeriod"
+            value: "1"
+          - name: "Stream1:EnableCallbacks"
+            value: "1"
+
+    - name: "fi5-cam-bas-001"
+      template: "adcamera"
+      networks:
+        - name: "vlan-115"
+          annotation: "euaps-cams"
+      devices:
+        - name: "FI5CAM01"
+          id: 192.168.115.40 # serial 40418959, cceuapscam20, MAC 00:30:53:35:E6:5F
+          buffers: 500
+          iocinit:
+          - name: "AcquirePeriod"
+            value: "1"
+          - name: "Stream1:EnableCallbacks"
+            value: "1"
+          
+    - name: "cam-03"
+      template: "adcamera"
+      networks:
+        - name: "vlan-115"
+          annotation: "euaps-cams"
+      devices:
+        - name: "CAM03"
+          id: 192.168.115.41 # serial 40426580, MAC 00:30:53:35:EB:B1
+          buffers: 500
+          iocinit:
+          - name: "AcquirePeriod"
+            value: "1"
+          - name: "Stream1:EnableCallbacks"
+            value: "1"
+    
+    - name: "fi-cam-focus-01"
+      template: "adcamera"
+      alias: "FI8-CAM-BAS-005"
+      networks:
+        - name: "vlan-115"
+          annotation: "euaps-cams"
+      resources:
+            limits:
+              cpu: 500m
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+      devices:
+        - name: "FI-FOCUS01"
+          id: cceuapscam03.lnf.infn.it # cicciona lenta, serial 40436383, MAC 00:30:53:35:F5:FC
+          buffers: 100
+          iocinit:
+          - name: "AcquirePeriod"
+            value: "1"
+          - name: "Stream1:EnableCallbacks"
+            value: "1"
+
+
+    - name: "fp-cam-main01"
+      template: "adcamera"
+      alias: "FP1-CAM-BAS-001"
+      networks:
+        - name: "vlan-115"
+          annotation: "euaps-cams"
+      resources:
+            limits:
+              cpu: 500m
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+      devices:
+        - name: "FP-MAIN01"
+          id: cceuapscam22.lnf.infn.it # 192.168.115.42 # serial 40426578, MAC 00:30:53:35:EB:AF
+          buffers: 100
+          iocinit:
+          - name: "AcquirePeriod"
+            value: "1"
+          - name: "Stream1:EnableCallbacks"
+            value: "1"
+
+    - name: "fp-cam-probe01"
+      template: "adcamera"
+      alias: "FP7-CAM-BAS-001"
+      networks:
+        - name: "vlan-115"
+          annotation: "euaps-cams"
+      devices:
+        - name: "FP-PROBE01"
+          id: cceuapscam23.lnf.infn.it #192.168.115.43 # serial 40426573, cceuapscam23, MAC 00:30:53:35:EB:AA
+          buffers: 500
+          iocinit:
+          - name: "AcquirePeriod"
+            value: "1"
+          - name: "Stream1:EnableCallbacks"
+            value: "1"
+
+    - name: "fi4-cam-bas-02"
+      template: "adcamera"
+      networks:
+        - name: "vlan-115"
+          annotation: "euaps-cams"
+      devices:
+        - name: "FI4CAM2"
+          id: 192.168.115.44 # serial 40422284, cceuapscam24, MAC 00:30:53:35:E8:73
+          buffers: 500
+          iocinit:
+          - name: "AcquirePeriod"
+            value: "1"
+          - name: "Stream1:EnableCallbacks"
+            value: "1"
+
+    - name: "fi-cam-probe01"
+      template: "adcamera"
+      alias: "FI1-CAM-BAS-001"
+      networks:
+        - name: "vlan-115"
+          annotation: "euaps-cams"
+      devices:
+        - name: "FI-PROBE01"
+          id: cceuapscam26.lnf.infn.it #192.168.115.46 # serial 40282912, MAC 00:30:53:37:6D:E7
+          buffers: 500
+          iocinit:
+          - name: "AcquirePeriod"
+            value: "1"
+          - name: "Stream1:EnableCallbacks"
+            value: "1"
+
+    - name: "fi7-cam-bas-001"
+      template: "adcamera"
+      networks:
+        - name: "vlan-115"
+          annotation: "euaps-cams"
+      devices:
+        - name: "FI7CAM1"
+          id: 192.168.115.51 # serial 40426579, cceuapscam27, MAC 00:30:53:35:EB:B0
+          buffers: 500
+          iocinit:
+          - name: "AcquirePeriod"
+            value: "1"
+          - name: "Stream1:EnableCallbacks"
+            value: "1"
+        
+cronjobs:
+    - name: "hugo-docs"
+      ## schedule every hours
+      schedule: "*/10 * * * *"
+      image:
+        repository: "ghcr.io/hugomods/hugo:debian-nightly"
+        pullPolicy: "Always"
+      charturl: https://baltig.infn.it/epics-containers/generic-application-chart.git
+      gitRepoApp:
+        url: https://baltig.infn.it/lnf-da-control/epik8s-euaps-site.git
+        mountPath: /src
+      secure: true
+      exec: |
+        mkdir -p /src/static/reports /src/static/iocinfo
+        cp /docsrc/* /src/static/reports
+        cp /etc/epik8s-beamline.yaml content/control
+        cd /src
+        node /src/tools/iocinfo.js --iocinfo-dir  /doc-iocs/ --opi-dir content/control/epik8s-opi  --control-dir content/control/ --values-file content/control/epik8s-beamline.yaml --services-dir content/services
+        hugo --source /src/ --destination /docsrc/public --minify
+      
+      nfsMounts:
+        - name: hugo-docs-nfs
+          mountPath: /docsrc
+          server: 192.168.197.157
+          path: /data_epik8s/euaps/Documents
+        - name: config
+          mountPath: /doc-iocs
+          server: 192.168.197.157
+          path: /data_epik8s/euaps/config
+applications:
+  
+  
+  
+    
+opi:
+  camera:
+    url: https://baltig.infn.it/infn-epics/camera-opi.git
+    main: Camera_Main.bob
+    macro:
+      - name: "DEVICE"
+        value: "{{iocprefix}}"
+      - name: "CAM"
+        value: "{{iocroot}}"
+  icpdas:
+    url: https://baltig.infn.it/infn-epics/icpdas-opi.git
+    main: "{{devtype}}.bob"
+    macro:
+      - name: "P"
+        value: "{{iocprefix}}"
+      - name: "R"
+        value: "{{iocroot}}"
+  unimag:
+    url: https://baltig.infn.it/infn-epics/unimag.git
+    main: opi/unimag.bob
+    macro:
+      - name: "TITLE"
+        value: "Unimag {{beamline}}"
+      - name: "P"
+        value: "{{iocprefix}}"
+      - name: "CONFFILE"
+        value: "{{CONFIG}}"
+backend:
+  namespace: "backend"
+  mongo:
+    host: mongodb
+    port: 27017
+  elasticsearch:
+    host: elasticsearch-es-http
+    clusterName: elasticsearch
+    port: 9200
+    protocol: https
+    pubcertsecret: elasticsearch-es-http-certs-public #secret containing the public cert
+    authorization:
+      username: elastic
+      password: GJkrSqzVRka9PC7b2N2cHmBM
+
+  kafka:
+    host: eph-kafka-kafka-brokers
+    port: 9092
+nfsMounts:
+    - name: data
+      server: 192.168.197.157
+      path: /data_epik8s/euaps/data
+      mountPath: /nfs/data
+      opt: "-o nolock"
+    - name: autosave
+      server: 192.168.197.157
+      path: /data_epik8s/euaps/autosave
+      mountPath: /nfs/autosave
+      opt: "-o nolock"
+    - name: config
+      server: 192.168.197.157
+      path: /data_epik8s/euaps/config
+      mountPath: /nfs/config
+      opt: "-o nolock"
+
+email:
+  from: "phoebus@localhost"
+  to: "phoebus@localhost"
+  smtp:
+    host: smtp.lnf.infn.it
+    port: 25
+    user: ""
+    password: ""
+    tls: false
+    starttls: false
+    auth: false
+
+syncPolicy:
+    automated:
+      prune: true  # Optional: Automatically remove resources not specified in Helm chart
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true 
+      - Prune=true

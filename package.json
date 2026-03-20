@@ -1,13 +1,17 @@
 {
   "name": "react-epik8s-dashboard",
-  "private": true,
+  "private": false,
   "version": "2.0.0",
   "type": "module",
   "description": "EPIK8s Dashboard - Configuration-driven web application for EPICS control systems with camera arrays, instrumentation control, and beamline overview",
+  "author": "Andrea Michelotti",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@xyflow/react": "^12.10.1",
@@ -22,6 +26,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "vitest": "^4.1.0"
   }
 }

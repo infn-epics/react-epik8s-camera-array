@@ -1,5 +1,9 @@
 # EPIK8s Dashboard
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+**Author:** Andrea Michelotti
+
 A modular, configuration-driven React web application that provides a **Grafana-like experience** for creating and managing dashboards for EPICS-based particle accelerator systems. Supports both auto-generated views from YAML configuration and user-created custom dashboards with a pluggable widget system.
 
 ## Features
