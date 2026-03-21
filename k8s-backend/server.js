@@ -4,10 +4,12 @@
  * Runs inside the beamline namespace and uses the in-cluster ServiceAccount
  * to proxy K8s API and ArgoCD requests for the dashboard frontend.
  *
+ * ArgoCD Application resources are queried directly via the K8s CRD API
+ * (argoproj.io/v1alpha1/applications) — no ArgoCD REST API token needed.
+ *
  * Environment variables:
  *   NAMESPACE          — target namespace (default: read from SA mount)
- *   ARGOCD_URL         — ArgoCD server URL (default: https://argocd-server.argocd.svc)
- *   ARGOCD_TOKEN       — ArgoCD API token (optional, falls back to SA token)
+ *   ARGOCD_NAMESPACE   — namespace where ArgoCD Application CRs live (default: argocd)
  *   PORT               — listen port (default: 3001)
  *   ALLOWED_ORIGINS    — comma-separated CORS origins (default: *)
  *   LOG_LEVEL          — morgan format (default: combined)
@@ -18,13 +20,12 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { KubeConfig, CoreV1Api, AppsV1Api } from '@kubernetes/client-node';
+import { KubeConfig, CoreV1Api, AppsV1Api, CustomObjectsApi } from '@kubernetes/client-node';
 
 // ─── Config ─────────────────────────────────────────────────────────────
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
-const ARGOCD_URL = process.env.ARGOCD_URL || 'https://argocd-server.argocd.svc';
-const ARGOCD_TOKEN = process.env.ARGOCD_TOKEN || '';
+const ARGOCD_NAMESPACE = process.env.ARGOCD_NAMESPACE || 'argocd';
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS || '*';
 const LOG_LEVEL = process.env.LOG_LEVEL || 'combined';
 
@@ -48,39 +49,58 @@ try {
 
 const coreApi = kc.makeApiClient(CoreV1Api);
 const appsApi = kc.makeApiClient(AppsV1Api);
+const customApi = kc.makeApiClient(CustomObjectsApi);
 
-// SA token for ArgoCD calls
-function saToken() {
-  if (ARGOCD_TOKEN) return ARGOCD_TOKEN;
-  const tokenFile = '/var/run/secrets/kubernetes.io/serviceaccount/token';
-  if (existsSync(tokenFile)) return readFileSync(tokenFile, 'utf8').trim();
-  return '';
+// ─── ArgoCD CRD helpers ──────────────────────────────────────────────────
+
+const ARGO_GROUP = 'argoproj.io';
+const ARGO_VERSION = 'v1alpha1';
+const ARGO_PLURAL = 'applications';
+
+/** List ArgoCD Applications belonging to this beamline namespace. */
+async function listArgoApps() {
+  const resp = await customApi.listNamespacedCustomObject({
+    group: ARGO_GROUP,
+    version: ARGO_VERSION,
+    namespace: ARGOCD_NAMESPACE,
+    plural: ARGO_PLURAL,
+  });
+  return (resp.items || []).filter(
+    app => app.spec?.destination?.namespace === NAMESPACE ||
+           app.spec?.project === NAMESPACE
+  );
 }
 
-// ─── ArgoCD helpers ─────────────────────────────────────────────────────
+/** Get a single ArgoCD Application by name. */
+async function getArgoApp(name) {
+  return customApi.getNamespacedCustomObject({
+    group: ARGO_GROUP,
+    version: ARGO_VERSION,
+    namespace: ARGOCD_NAMESPACE,
+    plural: ARGO_PLURAL,
+    name,
+  });
+}
 
-async function argoFetch(path, method = 'GET', body = null) {
-  const url = `${ARGOCD_URL}${path}`;
-  const headers = {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${saToken()}`,
-  };
-  const opts = {
-    method,
-    headers,
-    // Skip TLS verification for in-cluster ArgoCD (self-signed cert)
-    ...(process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0' ? {} : {}),
-  };
-  if (body) opts.body = JSON.stringify(body);
+/** Patch an ArgoCD Application (merge-patch). */
+async function patchArgoApp(name, body) {
+  return customApi.patchNamespacedCustomObject(
+    { group: ARGO_GROUP, version: ARGO_VERSION, namespace: ARGOCD_NAMESPACE, plural: ARGO_PLURAL, name, body },
+    undefined, undefined, undefined, undefined,
+    { headers: { 'Content-Type': 'application/merge-patch+json' } },
+  );
+}
 
-  const resp = await fetch(url, opts);
-  if (!resp.ok) {
-    const text = await resp.text();
-    const err = new Error(`ArgoCD ${method} ${path}: ${resp.status} ${text}`);
-    err.status = resp.status;
-    throw err;
-  }
-  return resp.json();
+/** Delete an ArgoCD Application. */
+async function deleteArgoApp(name) {
+  return customApi.deleteNamespacedCustomObject({
+    group: ARGO_GROUP,
+    version: ARGO_VERSION,
+    namespace: ARGOCD_NAMESPACE,
+    plural: ARGO_PLURAL,
+    name,
+    body: { propagationPolicy: 'Foreground' },
+  });
 }
 
 // ─── Express app ────────────────────────────────────────────────────────
@@ -119,30 +139,32 @@ app.get('/api/v1/namespace', async (_req, res, next) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// ArgoCD Applications
+// ArgoCD Applications (via K8s CRD API — no ArgoCD token required)
 // ═══════════════════════════════════════════════════════════════════════
 
 app.get('/api/v1/applications', async (_req, res, next) => {
   try {
-    const data = await argoFetch(`/api/v1/applications?project=${NAMESPACE}`);
-    res.json(data.items || []);
+    res.json(await listArgoApps());
   } catch (err) { next(err); }
 });
 
 app.get('/api/v1/applications/:name', async (req, res, next) => {
   try {
-    const data = await argoFetch(`/api/v1/applications/${encodeURIComponent(req.params.name)}`);
-    res.json(data);
+    res.json(await getArgoApp(req.params.name));
   } catch (err) { next(err); }
 });
 
+// Trigger sync by setting spec.operation on the Application CR
 app.post('/api/v1/applications/:name/sync', async (req, res, next) => {
   try {
-    const data = await argoFetch(
-      `/api/v1/applications/${encodeURIComponent(req.params.name)}/sync`,
-      'POST',
-      { prune: true },
-    );
+    const data = await patchArgoApp(req.params.name, {
+      spec: {
+        operation: {
+          sync: { revision: 'HEAD', prune: false },
+          initiatedBy: { username: 'epik8s-dashboard' },
+        },
+      },
+    });
     res.json(data);
   } catch (err) { next(err); }
 });
@@ -183,11 +205,7 @@ app.post('/api/v1/applications/:name/restart', async (req, res, next) => {
 
 app.delete('/api/v1/applications/:name', async (req, res, next) => {
   try {
-    const data = await argoFetch(
-      `/api/v1/applications/${encodeURIComponent(req.params.name)}?cascade=true`,
-      'DELETE',
-    );
-    res.json(data);
+    res.json(await deleteArgoApp(req.params.name));
   } catch (err) { next(err); }
 });
 
@@ -293,6 +311,6 @@ app.use((err, _req, res, _next) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`epik8s-backend listening on :${PORT}`);
-  console.log(`  namespace : ${NAMESPACE}`);
-  console.log(`  argocd    : ${ARGOCD_URL}`);
+  console.log(`  namespace       : ${NAMESPACE}`);
+  console.log(`  argocd ns       : ${ARGOCD_NAMESPACE}`);
 });
