@@ -28,7 +28,7 @@ const MOTOR_DEVICE_FIELDS = [
 ];
 
 // ─── Camera subtypes ───────────────────────────────────────────────
-const CAMERA_DEVTYPES = ['camerasim', 'aravisCamera', 'baslerCamera', 'genericCamera'];
+const CAMERA_DEVTYPES = ['camerasim', 'adcamera', 'adcamera2', 'softioc'];
 
 const CAMERA_DEVICE_FIELDS = [
   { key: 'name', label: 'Name', type: 'text', required: true, placeholder: 'CAM01' },
@@ -152,7 +152,7 @@ export const IOC_TEMPLATES = {
     iocFields: [...COMMON_IOC_FIELDS],
     iocExtras: CAMERA_IOC_EXTRAS,
     deviceFields: CAMERA_DEVICE_FIELDS,
-    help: 'Area detector camera IOC — camerasim, aravisCamera, baslerCamera',
+    help: 'Area detector camera IOC — camerasim, adcamera, adcamera2, softioc',
     defaultDevtype: 'camerasim',
     scaffold: (name, devtype, prefix) => ({
       name,

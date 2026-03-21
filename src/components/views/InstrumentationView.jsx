@@ -7,6 +7,7 @@ import { widgetSizeMap } from '../../widgets/registry.js';
 import WidgetFrame from '../../widgets/WidgetFrame.jsx';
 import { deviceToWidgetConfig } from '../../models/dashboard.js';
 import SearchFilter from '../common/SearchFilter.jsx';
+import RoleGuard from '../common/RoleGuard.jsx';
 
 /**
  * InstrumentationView - Filterable/groupable device dashboard.
@@ -42,12 +43,14 @@ export default function InstrumentationView() {
         <span className="view-toolbar-title">Instrumentation</span>
         <div className="toolbar-controls">
           <SearchFilter devices={devices} onFilter={handleFilter} />
-          <button
-            className={`toolbar-btn ${editMode ? 'active' : ''}`}
-            onClick={() => setEditMode((e) => !e)}
-          >
-            {editMode ? '🔒 Lock' : '🔓 Edit'}
-          </button>
+          <RoleGuard require="operator">
+            <button
+              className={`toolbar-btn ${editMode ? 'active' : ''}`}
+              onClick={() => setEditMode((e) => !e)}
+            >
+              {editMode ? '🔒 Lock' : '🔓 Edit'}
+            </button>
+          </RoleGuard>
           <button className="toolbar-btn" onClick={resetLayout} title="Reset to auto layout">
             ↻ Reset
           </button>

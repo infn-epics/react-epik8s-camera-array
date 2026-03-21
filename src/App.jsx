@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext.jsx';
+import { AuthProvider } from './context/AuthContext.jsx';
 import { DashboardProvider } from './context/DashboardContext.jsx';
 import { useTheme } from './hooks/useTheme.js';
 import AppShell from './components/layout/AppShell.jsx';
@@ -9,9 +10,11 @@ import InstrumentationView from './components/views/InstrumentationView.jsx';
 import BeamlineView from './components/views/BeamlineView.jsx';
 import BeamlineLayoutView from './components/views/BeamlineLayout.jsx';
 import SettingsView from './components/views/SettingsView.jsx';
+import TicketsView from './components/views/TicketsView.jsx';
+import K8sView from './components/views/K8sView.jsx';
 
 function AppRoutes() {
-  const { loading, error } = useApp();
+  const { loading, error, config } = useApp();
   const { theme, toggleTheme } = useTheme();
 
   if (loading) {
@@ -37,19 +40,23 @@ function AppRoutes() {
   }
 
   return (
-    <DashboardProvider>
-      <AppShell theme={theme} onToggleTheme={toggleTheme}>
-        <Routes>
-          <Route path="/dashboard" element={<DashboardView />} />
-          <Route path="/cameras" element={<CameraView />} />
-          <Route path="/instrumentation" element={<InstrumentationView />} />
-          <Route path="/beamline" element={<BeamlineView />} />
-          <Route path="/layout" element={<BeamlineLayoutView />} />
-          <Route path="/settings" element={<SettingsView />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </AppShell>
-    </DashboardProvider>
+    <AuthProvider giturl={config?.giturl}>
+      <DashboardProvider>
+        <AppShell theme={theme} onToggleTheme={toggleTheme}>
+          <Routes>
+            <Route path="/dashboard" element={<DashboardView />} />
+            <Route path="/cameras" element={<CameraView />} />
+            <Route path="/instrumentation" element={<InstrumentationView />} />
+            <Route path="/beamline" element={<BeamlineView />} />
+            <Route path="/layout" element={<BeamlineLayoutView />} />
+            <Route path="/settings" element={<SettingsView />} />
+            <Route path="/tickets" element={<TicketsView />} />
+            <Route path="/k8s" element={<K8sView />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </AppShell>
+      </DashboardProvider>
+    </AuthProvider>
   );
 }
 

@@ -1,0 +1,56 @@
+# ServiceAccount, Role, and RoleBinding for the epik8s-backend.
+# Gives the backend read access to K8s resources in its own namespace
+# and the ability to delete pods and scale deployments.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: epik8s-backend
+  labels:
+    app.kubernetes.io/name: epik8s-backend
+    app.kubernetes.io/component: backend
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: epik8s-backend
+  labels:
+    app.kubernetes.io/name: epik8s-backend
+rules:
+  # Read namespaces (own namespace info)
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get"]
+  # Pods: list, get, delete, read logs
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  # Services, ConfigMaps: read-only
+  - apiGroups: [""]
+    resources: ["services", "configmaps"]
+    verbs: ["get", "list"]
+  # Deployments: list, get, patch (for scale and rolling restart)
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "patch"]
+  # StatefulSets: read-only
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: epik8s-backend
+  labels:
+    app.kubernetes.io/name: epik8s-backend
+subjects:
+  - kind: ServiceAccount
+    name: epik8s-backend
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: epik8s-backend

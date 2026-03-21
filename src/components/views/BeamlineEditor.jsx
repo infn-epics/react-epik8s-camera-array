@@ -1,26 +1,24 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import yaml from 'js-yaml';
 import { useApp } from '../../context/AppContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { parseGitUrl, getFile, commitFile } from '../../services/gitApi.js';
 import { IOC_TEMPLATES, getTemplateKeys, resolveTemplate } from '../../models/iocTemplates.js';
-
-const PAT_KEY = 'epik8s-git-pat';
 
 /**
  * BeamlineEditor — edit IOCs and services from the values.yaml,
  * validate, and commit/push to the beamline git repository.
+ *
+ * Uses the PAT token from AuthContext for all git operations.
  */
 export default function BeamlineEditor() {
   const { config } = useApp();
+  const { token, isAuthenticated, user, hasRole, provider } = useAuth();
 
   // Git repo info derived from config
   const repoInfo = useMemo(() => parseGitUrl(config?.giturl), [config?.giturl]);
   const branch = config?.gitrev || 'main';
   const valuesPath = 'deploy/values.yaml';
-
-  // PAT stored in sessionStorage for the current browser tab
-  const [pat, setPat] = useState(() => sessionStorage.getItem(PAT_KEY) || '');
-  const [showPat, setShowPat] = useState(false);
 
   // Editor state
   const [rawYaml, setRawYaml] = useState('');
@@ -43,14 +41,15 @@ export default function BeamlineEditor() {
   // IOC/Service editing
   const [editingItem, setEditingItem] = useState(null); // { section, index, data }
   const [addingSection, setAddingSection] = useState(null); // 'ioc' | 'service' | null
+  const [sidebarOpen, setSidebarOpen] = useState(true); // template sidebar
 
   // ─── Fetch values.yaml from repo ─────────────────────────────
   const fetchYaml = useCallback(async () => {
-    if (!repoInfo || !pat) return;
+    if (!repoInfo || !token) return;
     setFetching(true);
     setFetchError(null);
     try {
-      const result = await getFile(repoInfo, valuesPath, branch, pat);
+      const result = await getFile(repoInfo, valuesPath, branch, token);
       setRawYaml(result.content);
       setFileRef(result.sha || result.blob_id || null);
       tryParse(result.content);
@@ -60,12 +59,14 @@ export default function BeamlineEditor() {
     } finally {
       setFetching(false);
     }
-  }, [repoInfo, branch, pat, valuesPath]);
+  }, [repoInfo, branch, token, valuesPath]);
 
-  const savePat = () => {
-    sessionStorage.setItem(PAT_KEY, pat);
-    fetchYaml();
-  };
+  // Auto-fetch when token becomes available
+  useEffect(() => {
+    if (isAuthenticated && repoInfo && !rawYaml) {
+      fetchYaml();
+    }
+  }, [isAuthenticated, repoInfo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── YAML parsing & validation ────────────────────────────────
   const tryParse = useCallback((text) => {
@@ -86,7 +87,6 @@ export default function BeamlineEditor() {
         if (Array.isArray(iocs)) {
           iocs.forEach((ioc, i) => {
             if (!ioc.name) errors.push(`IOC #${i + 1}: missing name`);
-            if (!ioc.template && !ioc.charturl) errors.push(`IOC "${ioc.name || i}": missing template or charturl`);
           });
         }
         const services = parsed.epicsConfiguration?.services;
@@ -134,6 +134,16 @@ export default function BeamlineEditor() {
     setAddingSection(null);
   };
 
+  const cloneIoc = (index) => {
+    const clone = structuredClone(iocs[index]);
+    clone.name = clone.name + '-copy';
+    const cfg = structuredClone(parsedConfig);
+    cfg.epicsConfiguration.iocs.splice(index + 1, 0, clone);
+    rebuildYaml(cfg);
+    // Open the clone for editing
+    setEditingItem({ section: 'ioc', index: index + 1, data: structuredClone(clone) });
+  };
+
   // ─── Service Operations ───────────────────────────────────────
   const updateService = (key, newData) => {
     const cfg = structuredClone(parsedConfig);
@@ -166,14 +176,16 @@ export default function BeamlineEditor() {
 
   // ─── Commit & Push ───────────────────────────────────────────
   const handleCommit = async () => {
-    if (!repoInfo || !pat || validationErrors.length > 0) return;
+    if (!repoInfo || !token || validationErrors.length > 0) return;
+    if (!hasRole('operator')) return;
     setCommitting(true);
     setCommitResult(null);
     try {
+      const defaultMsg = `Update values.yaml via EPIK8s Dashboard (${user?.login || 'unknown'})`;
       const result = await commitFile(
         repoInfo, valuesPath, branch, rawYaml,
-        commitMsg || 'Update values.yaml via EPIK8s Beamline Editor',
-        pat, fileRef,
+        commitMsg || defaultMsg,
+        token, fileRef,
       );
       setCommitResult({ success: true, message: 'Committed successfully!' });
       setDirty(false);
@@ -201,28 +213,28 @@ export default function BeamlineEditor() {
         )}
       </div>
 
-      {/* PAT Entry */}
+      {/* Auth status */}
       {!repoInfo ? (
         <div className="bl-editor-notice">
           No git repository URL found in configuration (<code>giturl</code>).
         </div>
+      ) : isAuthenticated ? (
+        <div className="bl-editor-pat-bar">
+          <span className="bl-editor-auth-status">
+            ✓ Authenticated as <strong>{user?.name}</strong> ({provider === 'github' ? '🐙' : '🦊'} @{user?.login})
+          </span>
+          {!parsedConfig && (
+            <button className="bl-btn bl-btn--primary bl-btn--sm" onClick={fetchYaml} disabled={fetching}>
+              {fetching ? '⟳ Loading…' : '🔄 Fetch'}
+            </button>
+          )}
+          {fetchError && <span className="bl-editor-error">{fetchError}</span>}
+        </div>
       ) : (
         <div className="bl-editor-pat-bar">
-          <label className="bl-editor-pat-label">Personal Access Token:</label>
-          <input
-            className="settings-input bl-editor-pat-input"
-            type={showPat ? 'text' : 'password'}
-            value={pat}
-            onChange={(e) => setPat(e.target.value)}
-            placeholder={`${repoInfo.platform === 'gitlab' ? 'glpat-' : 'ghp_'}...`}
-          />
-          <button className="bl-btn bl-btn--sm" onClick={() => setShowPat((s) => !s)} title="Toggle visibility">
-            {showPat ? '🙈' : '👁'}
-          </button>
-          <button className="bl-btn bl-btn--primary bl-btn--sm" onClick={savePat} disabled={!pat || fetching}>
-            {fetching ? '⟳ Loading…' : '🔄 Fetch'}
-          </button>
-          {fetchError && <span className="bl-editor-error">{fetchError}</span>}
+          <span className="bl-editor-hint">
+            🔑 Please login with a PAT in <a href="#/settings">Settings → Authentication</a> to edit
+          </span>
         </div>
       )}
 
@@ -264,72 +276,88 @@ export default function BeamlineEditor() {
 
           {/* Visual editor */}
           {viewMode === 'visual' ? (
-            <div className="bl-editor-visual">
-              {/* Services — compact inline chips */}
-              <section className="bl-section">
-                <div className="bl-section-header">
-                  <h4 className="bl-section-title">🔌 Services ({Object.keys(services).length})</h4>
-                  <button className="bl-btn bl-btn--sm" onClick={() => setAddingSection('service')}>+ Add</button>
-                </div>
-                {editingItem?.section === 'service' ? (
-                  <ServiceRow
-                    name={editingItem.index}
-                    data={services[editingItem.index]}
-                    isEditing
-                    onSave={(newData) => updateService(editingItem.index, newData)}
-                    onCancel={() => setEditingItem(null)}
-                    onRemove={() => removeService(editingItem.index)}
-                  />
-                ) : (
-                  <div className="bl-chip-grid">
-                    {Object.entries(services).map(([key, svc]) => (
-                      <ServiceChip
-                        key={key}
-                        name={key}
-                        data={svc}
-                        onEdit={() => setEditingItem({ section: 'service', index: key, data: structuredClone(svc) })}
-                        onRemove={() => removeService(key)}
-                      />
-                    ))}
+            <div className="bl-editor-visual-layout">
+              {/* Main content area */}
+              <div className="bl-editor-main">
+                {/* Services — compact inline chips */}
+                <section className="bl-section">
+                  <div className="bl-section-header">
+                    <h4 className="bl-section-title">🔌 Services ({Object.keys(services).length})</h4>
                   </div>
-                )}
-                {addingSection === 'service' && (
-                  <AddServiceForm onSave={addService} onCancel={() => setAddingSection(null)} />
-                )}
-              </section>
+                  {editingItem?.section === 'service' ? (
+                    <ServiceRow
+                      name={editingItem.index}
+                      data={services[editingItem.index]}
+                      isEditing
+                      onSave={(newData) => updateService(editingItem.index, newData)}
+                      onCancel={() => setEditingItem(null)}
+                      onRemove={() => removeService(editingItem.index)}
+                    />
+                  ) : (
+                    <div className="bl-chip-grid">
+                      {Object.entries(services).map(([key, svc]) => (
+                        <ServiceChip
+                          key={key}
+                          name={key}
+                          data={svc}
+                          onEdit={() => setEditingItem({ section: 'service', index: key, data: structuredClone(svc) })}
+                          onRemove={() => removeService(key)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {addingSection === 'service' && (
+                    <AddServiceForm onSave={addService} onCancel={() => setAddingSection(null)} />
+                  )}
+                </section>
 
-              {/* IOCs — hierarchical tree grouped by template → devtype → zone */}
-              <section className="bl-section">
-                <div className="bl-section-header">
-                  <h4 className="bl-section-title">⚙ IOCs ({iocs.length})</h4>
-                  <button className="bl-btn bl-btn--sm" onClick={() => setAddingSection('ioc')}>+ Add IOC</button>
-                </div>
-                {editingItem?.section === 'ioc' ? (
-                  <IocRow
-                    data={iocs[editingItem.index]}
-                    index={editingItem.index}
-                    defaults={parsedConfig.iocDefaults || {}}
-                    isEditing
-                    onSave={(newData) => updateIoc(editingItem.index, newData)}
-                    onCancel={() => setEditingItem(null)}
-                    onRemove={() => removeIoc(editingItem.index)}
-                  />
-                ) : (
-                  <IocTree
-                    iocs={iocs}
-                    onEdit={(idx) => setEditingItem({ section: 'ioc', index: idx, data: structuredClone(iocs[idx]) })}
-                    onRemove={removeIoc}
-                  />
-                )}
-                {addingSection === 'ioc' && (
-                  <AddIocForm
-                    defaults={parsedConfig.iocDefaults || {}}
-                    beamlinePrefix={parsedConfig.namespace?.toUpperCase() || 'BEAMLINE'}
-                    onSave={addIoc}
-                    onCancel={() => setAddingSection(null)}
-                  />
-                )}
-              </section>
+                {/* IOCs — hierarchical tree grouped by template → devtype → zone */}
+                <section className="bl-section">
+                  <div className="bl-section-header">
+                    <h4 className="bl-section-title">⚙ IOCs ({iocs.length})</h4>
+                  </div>
+                  {editingItem?.section === 'ioc' ? (
+                    <IocRow
+                      data={iocs[editingItem.index]}
+                      index={editingItem.index}
+                      defaults={parsedConfig.iocDefaults || {}}
+                      isEditing
+                      onSave={(newData) => updateIoc(editingItem.index, newData)}
+                      onCancel={() => setEditingItem(null)}
+                      onRemove={() => removeIoc(editingItem.index)}
+                    />
+                  ) : (
+                    <IocTree
+                      iocs={iocs}
+                      onEdit={(idx) => setEditingItem({ section: 'ioc', index: idx, data: structuredClone(iocs[idx]) })}
+                      onClone={cloneIoc}
+                      onRemove={removeIoc}
+                    />
+                  )}
+                  {addingSection === 'ioc' && (
+                    <AddIocForm
+                      defaults={parsedConfig.iocDefaults || {}}
+                      beamlinePrefix={parsedConfig.namespace?.toUpperCase() || 'BEAMLINE'}
+                      onSave={addIoc}
+                      onCancel={() => setAddingSection(null)}
+                    />
+                  )}
+                </section>
+              </div>
+
+              {/* Template sidebar */}
+              <TemplateSidebar
+                open={sidebarOpen}
+                onToggle={() => setSidebarOpen((s) => !s)}
+                onAddIoc={(tplKey) => { setAddingSection('ioc'); setEditingItem(null); }}
+                onAddService={() => { setAddingSection('service'); setEditingItem(null); }}
+                addingSection={addingSection}
+                setAddingSection={setAddingSection}
+                defaults={parsedConfig.iocDefaults || {}}
+                beamlinePrefix={parsedConfig.namespace?.toUpperCase() || 'BEAMLINE'}
+                onSaveIoc={addIoc}
+                onSaveService={addService}
+              />
             </div>
           ) : (
             /* YAML editor with line numbers, auto-indent, and live validation */
@@ -544,7 +572,7 @@ function ServiceRow({ name, data, isEditing, onSave, onCancel, onRemove }) {
 
 // ─── IOC Tree (hierarchical: template → devtype → iocs) ────────────────
 
-function IocTree({ iocs, onEdit, onRemove }) {
+function IocTree({ iocs, onEdit, onClone, onRemove }) {
   const [collapsed, setCollapsed] = useState({});
   const toggle = (key) => setCollapsed((p) => ({ ...p, [key]: !p[key] }));
 
@@ -591,7 +619,7 @@ function IocTree({ iocs, onEdit, onRemove }) {
                     </div>
                   )}
                   {(!showDtLevel || !isDtCollapsed) && items.map(({ ioc, idx }) => (
-                    <IocChip key={idx} data={ioc} onEdit={() => onEdit(idx)} onRemove={() => onRemove(idx)} />
+                    <IocChip key={idx} data={ioc} onEdit={() => onEdit(idx)} onClone={() => onClone(idx)} onRemove={() => onRemove(idx)} />
                   ))}
                 </div>
               );
@@ -605,7 +633,7 @@ function IocTree({ iocs, onEdit, onRemove }) {
 
 // ─── IOC Chip (compact) ─────────────────────────────────────────────────
 
-function IocChip({ data, onEdit, onRemove }) {
+function IocChip({ data, onEdit, onClone, onRemove }) {
   const tplDef = resolveTemplate(data);
   const devCount = data.devices?.length || 0;
   const zones = Array.isArray(data.zones) ? data.zones : (data.zones ? [data.zones] : []);
@@ -616,6 +644,7 @@ function IocChip({ data, onEdit, onRemove }) {
       <span className="bl-ioc-chip-devs">{devCount}d</span>
       {zones.map((z) => <span key={z} className="bl-chip-tag bl-chip-tag--zone">{z}</span>)}
       <button className="bl-chip-action" onClick={onEdit} title="Edit">✏️</button>
+      <button className="bl-chip-action" onClick={onClone} title="Clone">📋</button>
       <button className="bl-chip-action bl-chip-action--danger" onClick={() => { if (confirm(`Remove IOC "${data.name}"?`)) onRemove(); }} title="Remove">✕</button>
     </div>
   );
@@ -776,28 +805,28 @@ function TemplateField({ def, value, onChange, compact }) {
     );
   }
 
-  if (type === 'textarea' || type === 'keyvalue') {
-    const textVal = type === 'keyvalue'
-      ? (Array.isArray(val) ? val.map((kv) => `${kv.key || kv.name}: ${kv.value || kv.val || ''}`).join('\n') : String(val))
-      : String(val);
+  if (type === 'textarea') {
     return (
       <div className={cls}>
         <label className="bl-tpl-field-label">{label}{required && ' *'}</label>
         <textarea
           className="bl-yaml-textarea bl-yaml-textarea--inline"
-          value={textVal}
-          onChange={(e) => {
-            if (type === 'keyvalue') {
-              const lines = e.target.value.split('\n').filter(Boolean);
-              onChange(lines.map((l) => { const [k, ...v] = l.split(':'); return { key: k.trim(), value: v.join(':').trim() }; }));
-            } else {
-              onChange(e.target.value);
-            }
-          }}
+          value={String(val)}
+          onChange={(e) => onChange(e.target.value)}
           rows={3}
           placeholder={placeholder}
           spellCheck={false}
         />
+      </div>
+    );
+  }
+
+  if (type === 'keyvalue') {
+    const kvArr = Array.isArray(val) ? val : [];
+    return (
+      <div className={cls}>
+        <label className="bl-tpl-field-label">{label}{required && ' *'}</label>
+        <KeyValueEditor value={kvArr} onChange={onChange} />
       </div>
     );
   }
@@ -1114,6 +1143,213 @@ function AddServiceForm({ onSave, onCancel }) {
           rows={8}
         />
       )}
+    </div>
+  );
+}
+
+// ─── Key-Value Editor with +/- buttons ──────────────────────────────────
+
+function KeyValueEditor({ value, onChange }) {
+  const items = Array.isArray(value) ? value : [];
+
+  const addItem = () => onChange([...items, { key: '', value: '' }]);
+  const removeItem = (idx) => onChange(items.filter((_, i) => i !== idx));
+  const updateItem = (idx, field, val) => {
+    onChange(items.map((item, i) => i === idx ? { ...item, [field]: val } : item));
+  };
+
+  return (
+    <div className="bl-kv-editor">
+      {items.map((item, idx) => (
+        <div key={idx} className="bl-kv-row">
+          <input
+            className="settings-input bl-kv-input"
+            value={item.key || item.name || ''}
+            onChange={(e) => updateItem(idx, 'key', e.target.value)}
+            placeholder="Name"
+          />
+          <input
+            className="settings-input bl-kv-input"
+            value={item.value || item.val || ''}
+            onChange={(e) => updateItem(idx, 'value', e.target.value)}
+            placeholder="Value"
+          />
+          <button className="bl-btn bl-btn--sm bl-btn--danger bl-kv-remove" onClick={() => removeItem(idx)} title="Remove">−</button>
+        </div>
+      ))}
+      <button className="bl-btn bl-btn--sm bl-kv-add" onClick={addItem}>+ Add parameter</button>
+    </div>
+  );
+}
+
+// ─── Template Sidebar (vertical bar with IOC + service templates) ───────
+
+const SERVICE_TEMPLATES = [
+  { key: 'pvagateway', label: 'PVA Gateway', icon: '🌐' },
+  { key: 'gateway', label: 'CA Gateway', icon: '🔗' },
+  { key: 'archiver', label: 'Archiver', icon: '💾' },
+  { key: 'pvws', label: 'PVWS', icon: '📡' },
+  { key: 'dbwr', label: 'Display Builder WR', icon: '🖥' },
+  { key: 'alarm', label: 'Alarm Server', icon: '🔔' },
+  { key: 'console', label: 'IOC Console', icon: '📟' },
+];
+
+function TemplateSidebar({ open, onToggle, addingSection, setAddingSection, defaults, beamlinePrefix, onSaveIoc, onSaveService }) {
+  const tplKeys = getTemplateKeys();
+  const [activeTab, setActiveTab] = useState('ioc'); // 'ioc' | 'service'
+
+  // For IOC add flow
+  const [selectedTpl, setSelectedTpl] = useState(null);
+  const [formData, setFormData] = useState({});
+  const [devices, setDevices] = useState([]);
+  const [error, setError] = useState(null);
+
+  // For service add flow
+  const [svcKey, setSvcKey] = useState('');
+  const [svcError, setSvcError] = useState(null);
+
+  const selectIocTemplate = (key) => {
+    const tpl = IOC_TEMPLATES[key];
+    setSelectedTpl(key);
+    setFormData({
+      name: '',
+      iocprefix: `${beamlinePrefix}:`,
+      zones: '',
+      asset: '',
+      _server: '',
+      _port: '',
+      _devtype: tpl.defaultDevtype || tpl.devtypes[0] || '',
+    });
+    setDevices([]);
+    setError(null);
+  };
+
+  const handleSaveIoc = () => {
+    if (!selectedTpl) return;
+    const tpl = IOC_TEMPLATES[selectedTpl];
+    if (!formData.name?.trim()) { setError('IOC name is required'); return; }
+    try {
+      const ioc = tpl.scaffold(formData.name, formData._devtype || tpl.defaultDevtype, formData.iocprefix);
+      if (formData.zones) ioc.zones = formData.zones.split(',').map((z) => z.trim()).filter(Boolean);
+      if (formData.asset) ioc.asset = formData.asset;
+      const iocparam = [];
+      if (formData._server) iocparam.push({ key: 'SERVER', value: formData._server });
+      if (formData._port) iocparam.push({ key: 'PORT', value: formData._port });
+      if (iocparam.length) ioc.iocparam = iocparam;
+      for (const ext of (tpl.iocExtras || [])) {
+        if (formData[ext.key] !== undefined && formData[ext.key] !== ext.default) ioc[ext.key] = formData[ext.key];
+      }
+      ioc.devices = devices.filter((d) => d.name).map((d) => {
+        const cleaned = {};
+        for (const [k, v] of Object.entries(d)) { if (v !== '' && v !== undefined) cleaned[k] = v; }
+        return cleaned;
+      });
+      onSaveIoc(ioc);
+      setSelectedTpl(null);
+      setFormData({});
+      setDevices([]);
+    } catch (e) { setError(e.message); }
+  };
+
+  const handleAddService = (key) => {
+    onSaveService(key, { charturl: '', enable_ingress: false, autosync: false });
+  };
+
+  const handleAddCustomService = () => {
+    if (!svcKey.trim()) { setSvcError('Service key is required'); return; }
+    onSaveService(svcKey.trim(), { charturl: '', enable_ingress: false, autosync: false });
+    setSvcKey('');
+    setSvcError(null);
+  };
+
+  if (!open) {
+    return (
+      <div className="bl-sidebar bl-sidebar--collapsed">
+        <button className="bl-sidebar-toggle" onClick={onToggle} title="Open template panel">◀</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bl-sidebar">
+      <div className="bl-sidebar-header">
+        <span className="bl-sidebar-title">Templates</span>
+        <button className="bl-sidebar-toggle" onClick={onToggle} title="Close template panel">▶</button>
+      </div>
+
+      {/* Tab toggle */}
+      <div className="bl-sidebar-tabs">
+        <button className={`bl-sidebar-tab ${activeTab === 'ioc' ? 'active' : ''}`} onClick={() => setActiveTab('ioc')}>
+          ⚙ IOCs
+        </button>
+        <button className={`bl-sidebar-tab ${activeTab === 'service' ? 'active' : ''}`} onClick={() => setActiveTab('service')}>
+          🔌 Services
+        </button>
+      </div>
+
+      <div className="bl-sidebar-content">
+        {activeTab === 'ioc' && !selectedTpl && (
+          <div className="bl-sidebar-list">
+            {tplKeys.map((key) => {
+              const t = IOC_TEMPLATES[key];
+              return (
+                <button key={key} className="bl-sidebar-item" onClick={() => selectIocTemplate(key)}>
+                  <span className="bl-sidebar-item-icon">{t.icon}</span>
+                  <span className="bl-sidebar-item-label">{t.label}</span>
+                  <span className="bl-sidebar-item-count">{t.devtypes.length} type(s)</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {activeTab === 'ioc' && selectedTpl && (
+          <div className="bl-sidebar-form">
+            <div className="bl-sidebar-form-header">
+              <button className="bl-btn bl-btn--sm" onClick={() => setSelectedTpl(null)}>← Back</button>
+              <span>{IOC_TEMPLATES[selectedTpl].icon} {IOC_TEMPLATES[selectedTpl].label}</span>
+            </div>
+            {error && <div className="bl-editor-error">{error}</div>}
+            <IocFormFields
+              tplDef={IOC_TEMPLATES[selectedTpl]}
+              formData={formData}
+              setFormData={setFormData}
+              devices={devices}
+              setDevices={setDevices}
+              beamlinePrefix={beamlinePrefix}
+            />
+            <div className="bl-sidebar-form-actions">
+              <button className="bl-btn bl-btn--sm" onClick={() => setSelectedTpl(null)}>Cancel</button>
+              <button className="bl-btn bl-btn--sm bl-btn--primary" onClick={handleSaveIoc}>✓ Add IOC</button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'service' && (
+          <div className="bl-sidebar-list">
+            {SERVICE_TEMPLATES.map((svc) => (
+              <button key={svc.key} className="bl-sidebar-item" onClick={() => handleAddService(svc.key)}>
+                <span className="bl-sidebar-item-icon">{svc.icon}</span>
+                <span className="bl-sidebar-item-label">{svc.label}</span>
+              </button>
+            ))}
+            <div className="bl-sidebar-custom-svc">
+              <span className="bl-tpl-field-label">Custom service</span>
+              <div className="bl-sidebar-custom-svc-row">
+                <input
+                  className="settings-input"
+                  value={svcKey}
+                  onChange={(e) => setSvcKey(e.target.value)}
+                  placeholder="service-key"
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddCustomService()}
+                />
+                <button className="bl-btn bl-btn--sm bl-btn--primary" onClick={handleAddCustomService}>+</button>
+              </div>
+              {svcError && <div className="bl-editor-error">{svcError}</div>}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

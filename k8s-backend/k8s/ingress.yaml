@@ -1,0 +1,30 @@
+# Ingress for the epik8s-backend.
+# The host follows the convention: {namespace}-backend.{epik8namespace}
+# For the sparc beamline: sparc-backend.k8sda.lnf.infn.it
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: epik8s-backend
+  labels:
+    app.kubernetes.io/name: epik8s-backend
+    app.kubernetes.io/component: backend
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: sparc-backend.k8sda.lnf.infn.it  # Change to match your beamline
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: epik8s-backend
+                port:
+                  number: 3001
+  tls:
+    - hosts:
+        - sparc-backend.k8sda.lnf.infn.it

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { usePvwsStatus } from '../../hooks/usePv.js';
 import { useApp } from '../../context/AppContext.jsx';
+import UserMenu from '../common/UserMenu.jsx';
 import Sidebar from './Sidebar.jsx';
 
 /**
@@ -40,6 +41,13 @@ export default function AppShell({ children, theme, onToggleTheme }) {
             🗺 Layout
           </NavLink>
           <span className="nav-divider" />
+          <NavLink to="/tickets" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+            🎫 Tickets
+          </NavLink>
+          <NavLink to="/k8s" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+            ☸ K8s
+          </NavLink>
+          <span className="nav-divider" />
           <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
             ⚙ Settings
           </NavLink>
@@ -53,6 +61,7 @@ export default function AppShell({ children, theme, onToggleTheme }) {
           <button className="theme-toggle" onClick={onToggleTheme} title="Toggle theme">
             {theme === 'dark' ? '☀' : '🌙'}
           </button>
+          <UserMenu />
         </div>
       </header>
 

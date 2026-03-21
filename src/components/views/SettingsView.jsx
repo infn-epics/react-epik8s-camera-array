@@ -1,18 +1,29 @@
 import { useState } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { ROLES } from '../../services/auth.js';
 
 /**
  * SettingsView — Application settings page.
  *
  * Sections:
  *  - DataSources: PVWS and Archiver URL management
- *  - (Future) Users / Groups / OAuth2
+ *  - Authentication: PAT configuration for GitHub/GitLab
  */
 export default function SettingsView() {
   const { dataSources, updateDataSources, resetDataSources } = useApp();
+  const {
+    user, provider, role, isAuthenticated, repoInfo,
+    login, logout, authError, authLoading,
+  } = useAuth();
+
   const [pvwsUrl, setPvwsUrl] = useState(dataSources.pvwsUrl);
   const [archiverUrl, setArchiverUrl] = useState(dataSources.archiverUrl);
   const [saved, setSaved] = useState(false);
+
+  // PAT input
+  const [patInput, setPatInput] = useState('');
+  const [showPat, setShowPat] = useState(false);
 
   const isModified =
     pvwsUrl !== dataSources.pvwsUrl || archiverUrl !== dataSources.archiverUrl;
@@ -96,12 +107,75 @@ export default function SettingsView() {
         </div>
       </section>
 
-      {/* Future: Users / Groups / OAuth2 */}
-      <section className="settings-section settings-section--disabled">
-        <h3 className="settings-section-title">Users &amp; Authentication</h3>
+      {/* Authentication Section */}
+      <section className="settings-section">
+        <h3 className="settings-section-title">🔑 Authentication</h3>
         <p className="settings-section-desc">
-          User management, group permissions, and OAuth2 authentication will be available in a future release.
+          Provide a Personal Access Token (PAT) for your git platform to enable
+          configuration editing, ticket creation, and role-based access.
+          {repoInfo && (
+            <> Repository: <strong>{repoInfo.platform === 'github' ? '🐙 GitHub' : '🦊 GitLab'}</strong> — <code>{repoInfo.projectPath}</code> on <code>{repoInfo.host}</code></>
+          )}
         </p>
+
+        {/* Current auth status */}
+        {isAuthenticated ? (
+          <div className="settings-auth-status">
+            <div className="settings-auth-user">
+              {user.avatarUrl && <img src={user.avatarUrl} alt={user.login} className="settings-auth-avatar" />}
+              <div className="settings-auth-info">
+                <span className="settings-auth-name">{user.name}</span>
+                <span className="settings-auth-login">
+                  {provider === 'github' ? '🐙' : '🦊'} @{user.login}
+                </span>
+                <span className="settings-auth-role" style={{ color: ROLES[role]?.color }}>
+                  Role: {ROLES[role]?.label} — {ROLES[role]?.description}
+                </span>
+              </div>
+            </div>
+            <button className="settings-btn" onClick={logout}>🚪 Logout</button>
+          </div>
+        ) : (
+          <div className="settings-auth-status">
+            <span className="settings-auth-anon">Not authenticated — using viewer mode</span>
+          </div>
+        )}
+
+        {/* PAT login form (when not authenticated) */}
+        {!isAuthenticated && (
+          <div className="settings-field" style={{ marginTop: 12 }}>
+            <label className="settings-label" htmlFor="auth-pat">
+              {repoInfo?.platform === 'github' ? 'GitHub' : 'GitLab'} Personal Access Token
+            </label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                id="auth-pat"
+                className="settings-input"
+                type={showPat ? 'text' : 'password'}
+                value={patInput}
+                onChange={e => setPatInput(e.target.value)}
+                placeholder={repoInfo?.platform === 'github' ? 'ghp_...' : 'glpat-...'}
+                onKeyDown={e => { if (e.key === 'Enter' && patInput.trim()) login(patInput.trim()); }}
+              />
+              <button className="settings-btn" onClick={() => setShowPat(s => !s)} title="Toggle visibility">
+                {showPat ? '🙈' : '👁'}
+              </button>
+              <button
+                className="settings-btn settings-btn--primary"
+                onClick={() => login(patInput.trim())}
+                disabled={!patInput.trim() || authLoading}
+              >
+                {authLoading ? '⟳ Validating…' : '🔑 Login'}
+              </button>
+            </div>
+            <span className="settings-hint">
+              {repoInfo?.platform === 'github'
+                ? 'Create a PAT at github.com → Settings → Developer settings → Personal access tokens (scopes: repo)'
+                : `Create a PAT at ${repoInfo?.host || 'gitlab'} → Preferences → Access Tokens (scopes: api, read_api)`}
+            </span>
+          </div>
+        )}
+        {authError && <div className="settings-auth-error">{authError}</div>}
       </section>
     </div>
   );

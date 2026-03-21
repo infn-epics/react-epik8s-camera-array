@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: epik8s-backend
+  labels:
+    app.kubernetes.io/name: epik8s-backend
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3001
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: epik8s-backend

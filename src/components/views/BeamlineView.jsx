@@ -8,6 +8,7 @@ import { deviceToWidgetConfig } from '../../models/dashboard.js';
 import { groupDevicesBy } from '../../models/device.js';
 import BeamlineEditor from './BeamlineEditor.jsx';
 import BeamlineLayout from './BeamlineLayout.jsx';
+import RoleGuard from '../common/RoleGuard.jsx';
 
 const FAMILY_ICONS = { cam: '📷', mot: '⚙', bpm: '📡', mag: '🧲', vac: '💨', generic: '🔧' };
 const FAMILY_COLORS = { cam: '#3b82f6', mot: '#f59e0b', bpm: '#10b981', mag: '#8b5cf6', vac: '#ec4899', generic: '#6b7280' };
@@ -43,12 +44,16 @@ export default function BeamlineView() {
             <button className={`toolbar-btn ${viewMode === 'summary' ? 'active' : ''}`} onClick={() => setViewMode('summary')}>≡ Summary</button>
             <button className={`toolbar-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')}>⊞ Widgets</button>
             <button className={`toolbar-btn ${viewMode === 'layout' ? 'active' : ''}`} onClick={() => setViewMode('layout')}>🗺 Layout</button>
-            <button className={`toolbar-btn ${viewMode === 'editor' ? 'active' : ''}`} onClick={() => setViewMode('editor')}>📝 Editor</button>
+            <RoleGuard require="operator">
+              <button className={`toolbar-btn ${viewMode === 'editor' ? 'active' : ''}`} onClick={() => setViewMode('editor')}>📝 Editor</button>
+            </RoleGuard>
           </div>
           {viewMode === 'grid' && (
-            <button className={`toolbar-btn ${editMode ? 'active' : ''}`} onClick={() => setEditMode((e) => !e)}>
-              {editMode ? '🔒 Lock' : '🔓 Edit'}
-            </button>
+            <RoleGuard require="operator">
+              <button className={`toolbar-btn ${editMode ? 'active' : ''}`} onClick={() => setEditMode((e) => !e)}>
+                {editMode ? '🔒 Lock' : '🔓 Edit'}
+              </button>
+            </RoleGuard>
           )}
         </div>
       </div>
