@@ -18,7 +18,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import k8s from '@kubernetes/client-node';
+import { KubeConfig, CoreV1Api, AppsV1Api } from '@kubernetes/client-node';
 
 // ─── Config ─────────────────────────────────────────────────────────────
 
@@ -39,15 +39,15 @@ const NAMESPACE = detectNamespace();
 
 // ─── K8s client (in-cluster or kubeconfig) ──────────────────────────────
 
-const kc = new k8s.KubeConfig();
+const kc = new KubeConfig();
 try {
   kc.loadFromCluster();
 } catch {
   kc.loadFromDefault();
 }
 
-const coreApi = kc.makeApiClient(k8s.CoreV1Api);
-const appsApi = kc.makeApiClient(k8s.AppsV1Api);
+const coreApi = kc.makeApiClient(CoreV1Api);
+const appsApi = kc.makeApiClient(AppsV1Api);
 
 // SA token for ArgoCD calls
 function saToken() {
