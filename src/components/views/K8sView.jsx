@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import {
   buildBackendUrl, setBackendUrl, getBackendUrl, checkBackendHealth,
-  listApplications, syncApplication, restartApplication,
+  listApplications, syncApplication, restartApplication, deleteApplication,
   listPods, getPodLogs, deletePod,
   listServices, listConfigMaps, listDeployments, listStatefulSets,
   scaleDeployment, restartDeployment, deleteDeployment,
@@ -31,7 +31,7 @@ export default function K8sView() {
 
   const [tab, setTab] = useState('apps');
   const [healthy, setHealthy] = useState(null);
-  const [data, setData] = useState(null);
+  const [dataCache, setDataCache] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [actionMsg, setActionMsg] = useState(null);
@@ -76,7 +76,7 @@ export default function K8sView() {
         case 'nodes': result = await listNodes(token); break;
         default: return;
       }
-      setData(result);
+      setDataCache(prev => ({ ...prev, [tab]: result }));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -108,6 +108,15 @@ export default function K8sView() {
       flash(`Restarted ${name}`);
       fetchTab();
     } catch (err) { flash(`Restart failed: ${err.message}`); }
+  };
+
+  const handleDeleteApplication = async (name) => {
+    if (!window.confirm(`Delete application ${name}? This is destructive.`)) return;
+    try {
+      await deleteApplication(name, token);
+      flash(`Deleted application ${name}`);
+      fetchTab();
+    } catch (err) { flash(`Delete failed: ${err.message}`); }
   };
 
   const handleDeletePod = async (podName) => {
@@ -185,6 +194,7 @@ export default function K8sView() {
   }, [logsText]);
 
   /* ── Helpers ────────────────────────────── */
+  const data = dataCache[tab] ?? null;
   const items = Array.isArray(data) ? data : (data?.items || []);
 
   const healthBadge = (status) => {
@@ -237,7 +247,7 @@ export default function K8sView() {
         <input
           className="k8s-search-input"
           type="text"
-          placeholder="Search by name…"
+          placeholder={tab === 'apps' ? 'Search by name or label…' : 'Search by name…'}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -254,7 +264,7 @@ export default function K8sView() {
         {loading ? (
           <div className="tickets-loading">⟳ Loading…</div>
         ) : tab === 'apps' ? (
-          <AppsTable items={items} search={search} onSync={handleSync} onRestart={handleRestart} healthBadge={healthBadge} />
+          <AppsTable items={items} search={search} onSync={handleSync} onRestart={handleRestart} onDelete={handleDeleteApplication} healthBadge={healthBadge} />
         ) : tab === 'pods' ? (
           <PodsTable items={items} search={search} onLogs={handleLogs} onDelete={handleDeletePod} healthBadge={healthBadge} />
         ) : tab === 'services' ? (
@@ -382,17 +392,31 @@ function humanCpu(val) {
 
 /* ── Sub-tables ─────────────────────────────────────────────────────────── */
 
-function AppsTable({ items, search, onSync, onRestart, healthBadge }) {
+function AppsTable({ items, search, onSync, onRestart, onDelete, healthBadge }) {
   const { sortCol, sortDir, toggle } = useSortable('name');
   const getName = (app) => app.metadata?.name || app.name || '';
+  const getLabels = (app) => app.metadata?.labels || {};
+  const labelsString = (app) => {
+    const labels = getLabels(app);
+    return Object.entries(labels).map(([k, v]) => `${k}=${v}`).join(' ');
+  };
   const getter = (app, col) => {
     if (col === 'name') return getName(app);
     if (col === 'health') return app.status?.health?.status || app.health || '';
     if (col === 'sync') return app.status?.sync?.status || app.sync || '';
+    if (col === 'labels') return labelsString(app);
     if (col === 'repo') return app.spec?.source?.repoURL || app.repo || '';
     return '';
   };
-  const filtered = sortItems(filterBySearch(items, search, getName), sortCol, sortDir, getter);
+  // Search on name AND labels
+  const matchSearch = (app) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    if ((getName(app) || '').toLowerCase().includes(q)) return true;
+    if (labelsString(app).toLowerCase().includes(q)) return true;
+    return false;
+  };
+  const filtered = sortItems(items.filter(matchSearch), sortCol, sortDir, getter);
   if (!filtered.length) return <div className="tickets-empty-list">No applications found.</div>;
   return (
     <table className="k8s-table">
@@ -401,6 +425,7 @@ function AppsTable({ items, search, onSync, onRestart, healthBadge }) {
           <SortHeader label="Name" col="name" sortCol={sortCol} sortDir={sortDir} onSort={toggle} />
           <SortHeader label="Health" col="health" sortCol={sortCol} sortDir={sortDir} onSort={toggle} />
           <SortHeader label="Sync" col="sync" sortCol={sortCol} sortDir={sortDir} onSort={toggle} />
+          <SortHeader label="Labels" col="labels" sortCol={sortCol} sortDir={sortDir} onSort={toggle} />
           <SortHeader label="Repo" col="repo" sortCol={sortCol} sortDir={sortDir} onSort={toggle} />
           <th>Actions</th>
         </tr>
@@ -410,16 +435,23 @@ function AppsTable({ items, search, onSync, onRestart, healthBadge }) {
           const name = getName(app);
           const health = getter(app, 'health');
           const sync = getter(app, 'sync');
+          const labels = getLabels(app);
           const repo = getter(app, 'repo');
           return (
             <tr key={name}>
               <td className="k8s-cell-name">{name}</td>
               <td><span className={`k8s-badge ${healthBadge(health)}`}>{health}</span></td>
               <td><span className={`k8s-badge ${healthBadge(sync)}`}>{sync}</span></td>
+              <td className="k8s-cell-labels">
+                {Object.entries(labels).map(([k, v]) => (
+                  <span key={k} className="k8s-label-pill" title={`${k}=${v}`}>{k.split('/').pop()}={v}</span>
+                ))}
+              </td>
               <td className="k8s-cell-url">{repo}</td>
               <td className="k8s-cell-actions">
                 <button className="bl-btn bl-btn--xs" onClick={() => onSync(name)} title="Sync">🔄</button>
                 <button className="bl-btn bl-btn--xs" onClick={() => onRestart(name)} title="Restart">♻</button>
+                <button className="bl-btn bl-btn--xs bl-btn--danger" onClick={() => onDelete(name)} title="Delete">🗑</button>
               </td>
             </tr>
           );
