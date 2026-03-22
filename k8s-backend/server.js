@@ -193,7 +193,7 @@ app.post('/api/v1/applications/:name/restart', async (req, res, next) => {
         name: dep.metadata.name,
         namespace: NAMESPACE,
         body: patch,
-      }, undefined, undefined, undefined, undefined, undefined, {
+      }, {
         headers: { 'Content-Type': 'application/strategic-merge-patch+json' },
       });
       results.push(dep.metadata.name);
@@ -283,7 +283,7 @@ app.post('/api/v1/deployments/:name/scale', async (req, res, next) => {
       name: req.params.name,
       namespace: NAMESPACE,
       body: patch,
-    }, undefined, undefined, undefined, undefined, undefined, {
+    }, {
       headers: { 'Content-Type': 'application/strategic-merge-patch+json' },
     });
     res.json({ scaled: req.params.name, replicas });
@@ -301,7 +301,7 @@ app.post('/api/v1/deployments/:name/restart', async (req, res, next) => {
       name: req.params.name,
       namespace: NAMESPACE,
       body: patch,
-    }, undefined, undefined, undefined, undefined, undefined, {
+    }, {
       headers: { 'Content-Type': 'application/strategic-merge-patch+json' },
     });
     res.json({ restarted: req.params.name });
@@ -338,7 +338,7 @@ app.post('/api/v1/statefulsets/:name/scale', async (req, res, next) => {
       name: req.params.name,
       namespace: NAMESPACE,
       body: patch,
-    }, undefined, undefined, undefined, undefined, undefined, {
+    }, {
       headers: { 'Content-Type': 'application/strategic-merge-patch+json' },
     });
     res.json({ scaled: req.params.name, replicas });
@@ -356,7 +356,7 @@ app.post('/api/v1/statefulsets/:name/restart', async (req, res, next) => {
       name: req.params.name,
       namespace: NAMESPACE,
       body: patch,
-    }, undefined, undefined, undefined, undefined, undefined, {
+    }, {
       headers: { 'Content-Type': 'application/strategic-merge-patch+json' },
     });
     res.json({ restarted: req.params.name });
