@@ -129,6 +129,484 @@ body,
   color: #fff;
 }
 
+/* ===== Nav Group Dropdowns ===== */
+.nav-group {
+  position: relative;
+}
+
+.nav-group-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.nav-group-btn:hover,
+.nav-group-btn.open {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.nav-group-btn.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.nav-group-btn.active.open,
+.nav-group-btn.active:hover {
+  background: var(--surface-hover);
+}
+
+.nav-group-icon {
+  font-size: 14px;
+}
+
+.nav-caret {
+  font-size: 10px;
+  opacity: 0.5;
+  transition: transform 0.15s;
+}
+
+.nav-group-btn.open .nav-caret {
+  transform: rotate(180deg);
+}
+
+.nav-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  z-index: 200;
+  padding: 4px;
+}
+
+.nav-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: calc(var(--radius) - 2px);
+  text-decoration: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.12s, color 0.12s;
+}
+
+.nav-dropdown-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.nav-dropdown-item.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ===== Console Toggle Buttons ===== */
+.console-toggle-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 15px;
+  padding: 3px 7px;
+  line-height: 1;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.console-toggle-btn:hover {
+  background: var(--surface-hover);
+}
+
+.console-toggle-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ===== Console Panels ===== */
+.console-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 300px;
+  background: var(--surface);
+  border-top: 2px solid var(--accent);
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.2s;
+}
+
+.console-panel.console-detached {
+  position: fixed;
+  bottom: 60px;
+  right: 20px;
+  left: auto;
+  width: 420px;
+  height: 380px;
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+  resize: both;
+  overflow: hidden;
+}
+
+.console-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  cursor: default;
+  user-select: none;
+}
+
+.console-detached .console-header {
+  cursor: grab;
+}
+
+.console-detached .console-header:active {
+  cursor: grabbing;
+}
+
+.console-title {
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.console-conn {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+.console-conn.on {
+  background: var(--green);
+}
+
+.console-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.console-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: var(--radius);
+  transition: background 0.12s;
+}
+
+.console-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.console-filter {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 11px;
+  padding: 3px 8px;
+  width: 120px;
+}
+
+.console-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.console-mono {
+  font-family: 'Menlo', 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+}
+
+.console-empty {
+  color: var(--text-dim);
+  font-style: italic;
+  padding: 20px;
+  text-align: center;
+}
+
+/* Chat messages */
+.chat-msg {
+  padding: 2px 0;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.chat-broadcast {
+  background: rgba(234, 179, 8, 0.08);
+  border-left: 3px solid #eab308;
+  padding-left: 8px;
+  margin: 2px -12px 2px -12px;
+  padding: 4px 12px 4px 9px;
+}
+
+.chat-time {
+  font-size: 10px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  font-family: 'Menlo', 'Consolas', monospace;
+}
+
+.chat-user {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.chat-badge-broadcast {
+  flex-shrink: 0;
+}
+
+.chat-text {
+  color: var(--text);
+  word-break: break-word;
+}
+
+/* Chat attachments in messages */
+.chat-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.chat-attach-img-link {
+  display: block;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  transition: opacity 0.15s;
+}
+
+.chat-attach-img-link:hover {
+  opacity: 0.85;
+}
+
+.chat-attach-img {
+  max-width: 220px;
+  max-height: 140px;
+  display: block;
+  object-fit: contain;
+  background: #000;
+}
+
+.chat-attach-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius);
+  background: var(--surface-hover);
+  color: var(--accent);
+  font-size: 11px;
+  text-decoration: none;
+  border: 1px solid var(--border);
+}
+
+.chat-attach-file:hover {
+  background: var(--border);
+}
+
+/* Pending-attachments bar above input */
+.chat-attach-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.chat-attach-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2px 6px;
+  font-size: 11px;
+  max-width: 180px;
+}
+
+.chat-attach-thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 3px;
+}
+
+.chat-attach-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.chat-attach-remove {
+  background: none;
+  border: none;
+  color: var(--red);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.chat-attach-remove:hover {
+  opacity: 0.7;
+}
+
+/* Action buttons (attach / screenshot) */
+.chat-action-btn {
+  font-size: 15px !important;
+  padding: 2px 5px !important;
+  flex-shrink: 0;
+}
+
+.chat-action-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* Chat input */
+.console-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.chat-broadcast-toggle {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.chat-broadcast-toggle input {
+  margin: 0;
+}
+
+.console-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.console-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.console-send-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.console-send-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* System events */
+.sys-event {
+  padding: 2px 0;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.sys-event.sys-delete {
+  color: var(--red);
+}
+
+.sys-event.sys-restart {
+  color: var(--yellow, #eab308);
+}
+
+.sys-event.sys-scale {
+  color: var(--blue, #3b82f6);
+}
+
+.sys-event.sys-sync {
+  color: var(--green);
+}
+
+.sys-time {
+  font-size: 10px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.sys-ns {
+  font-size: 10px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.sys-text {
+  word-break: break-word;
+}
+
+/* Stack consoles when both open */
+.system-console + .chat-console,
+.chat-console + .system-console {
+  bottom: 302px;
+}
+
 .navbar-status {
   display: flex;
   align-items: center;
@@ -2806,6 +3284,24 @@ body,
     order: 3;
     width: 100%;
     justify-content: center;
+  }
+
+  .nav-dropdown {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: auto;
+  }
+
+  .console-panel:not(.console-detached) {
+    height: 220px;
+  }
+
+  .console-panel.console-detached {
+    width: calc(100vw - 16px);
+    left: 8px;
+    right: 8px;
   }
 
   .camera-grid {

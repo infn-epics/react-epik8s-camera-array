@@ -4159,6 +4159,12 @@ applications:
     
       
 
+## Dashboard backend — K8s/ArgoCD API proxy
+dashboard:
+  backend:
+    enabled: true
+    image: "ghcr.io/infn-epics/epik8s-dashboard/k8s-backend:latest"
+
 backend:
   namespace: "backend"
   mongo:

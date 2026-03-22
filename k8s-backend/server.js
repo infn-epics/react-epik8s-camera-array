@@ -16,10 +16,12 @@
  */
 
 import { readFileSync, existsSync } from 'node:fs';
+import { createServer } from 'node:http';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import { WebSocketServer } from 'ws';
 import { KubeConfig, CoreV1Api, AppsV1Api, CustomObjectsApi, Metrics } from '@kubernetes/client-node';
 
 // ─── Config ─────────────────────────────────────────────────────────────
@@ -115,6 +117,76 @@ app.use(express.json());
 const corsOrigins = ALLOWED_ORIGINS === '*' ? '*' : ALLOWED_ORIGINS.split(',').map(s => s.trim());
 app.use(cors({ origin: corsOrigins, credentials: true }));
 
+// ─── HTTP server (needed for WebSocket upgrade) ─────────────────────────
+
+const server = createServer(app);
+
+// ─── WebSocket servers (chat + system events) ───────────────────────────
+
+const chatWss = new WebSocketServer({ noServer: true });
+const systemWss = new WebSocketServer({ noServer: true });
+
+// Route WS upgrade by URL path
+server.on('upgrade', (req, socket, head) => {
+  const { pathname } = new URL(req.url, `http://${req.headers.host}`);
+  if (pathname === '/ws/chat') {
+    chatWss.handleUpgrade(req, socket, head, ws => chatWss.emit('connection', ws, req));
+  } else if (pathname === '/ws/system') {
+    systemWss.handleUpgrade(req, socket, head, ws => systemWss.emit('connection', ws, req));
+  } else {
+    socket.destroy();
+  }
+});
+
+// --- Chat relay ---
+// Max total WS message size: ~4MB (base64 overhead for ~3MB of files)
+const MAX_WS_MSG_BYTES = 4 * 1024 * 1024;
+
+chatWss.on('connection', (ws) => {
+  ws.on('message', (raw) => {
+    if (raw.length > MAX_WS_MSG_BYTES) return; // drop oversized
+    let msg;
+    try { msg = JSON.parse(raw); } catch { return; }
+    // Build sanitised attachments (max 5, each name+dataUrl)
+    let attachments = [];
+    if (Array.isArray(msg.attachments)) {
+      attachments = msg.attachments.slice(0, 5).map(a => ({
+        name: String(a.name || 'file').slice(0, 200),
+        dataUrl: String(a.dataUrl || '').slice(0, 3 * 1024 * 1024),
+      })).filter(a => a.dataUrl.length > 0);
+    }
+    const envelope = {
+      type: 'chat',
+      user: String(msg.user || 'anonymous').slice(0, 64),
+      text: String(msg.text || '').slice(0, 2000),
+      broadcast: !!msg.broadcast,
+      attachments,
+      ts: new Date().toISOString(),
+    };
+    const payload = JSON.stringify(envelope);
+    for (const client of chatWss.clients) {
+      if (client.readyState === 1) client.send(payload);
+    }
+  });
+});
+
+// --- System event broadcaster ---
+function emitSystemEvent(action, resource, name, extra = {}) {
+  const event = {
+    type: 'system',
+    action,
+    resource,
+    name,
+    namespace: NAMESPACE,
+    ts: new Date().toISOString(),
+    ...extra,
+  };
+  const payload = JSON.stringify(event);
+  for (const client of systemWss.clients) {
+    if (client.readyState === 1) client.send(payload);
+  }
+}
+
 // ─── Health ─────────────────────────────────────────────────────────────
 
 app.get('/healthz', (_req, res) => {
@@ -165,6 +237,7 @@ app.post('/api/v1/applications/:name/sync', async (req, res, next) => {
         },
       },
     });
+    emitSystemEvent('sync', 'application', req.params.name);
     res.json(data);
   } catch (err) { next(err); }
 });
@@ -199,13 +272,16 @@ app.post('/api/v1/applications/:name/restart', async (req, res, next) => {
       results.push(dep.metadata.name);
     }
 
+    emitSystemEvent('restart', 'application', req.params.name, { deployments: results });
     res.json({ restarted: results });
   } catch (err) { next(err); }
 });
 
 app.delete('/api/v1/applications/:name', async (req, res, next) => {
   try {
-    res.json(await deleteArgoApp(req.params.name));
+    const result = await deleteArgoApp(req.params.name);
+    emitSystemEvent('delete', 'application', req.params.name);
+    res.json(result);
   } catch (err) { next(err); }
 });
 
@@ -241,6 +317,7 @@ app.delete('/api/v1/pods/:name', async (req, res, next) => {
       name: req.params.name,
       namespace: NAMESPACE,
     });
+    emitSystemEvent('delete', 'pod', req.params.name);
     res.json({ deleted: req.params.name });
   } catch (err) { next(err); }
 });
@@ -286,6 +363,7 @@ app.post('/api/v1/deployments/:name/scale', async (req, res, next) => {
     }, {
       headers: { 'Content-Type': 'application/strategic-merge-patch+json' },
     });
+    emitSystemEvent('scale', 'deployment', req.params.name, { replicas });
     res.json({ scaled: req.params.name, replicas });
   } catch (err) { next(err); }
 });
@@ -304,6 +382,7 @@ app.post('/api/v1/deployments/:name/restart', async (req, res, next) => {
     }, {
       headers: { 'Content-Type': 'application/strategic-merge-patch+json' },
     });
+    emitSystemEvent('restart', 'deployment', req.params.name);
     res.json({ restarted: req.params.name });
   } catch (err) { next(err); }
 });
@@ -314,6 +393,7 @@ app.delete('/api/v1/deployments/:name', async (req, res, next) => {
       name: req.params.name,
       namespace: NAMESPACE,
     });
+    emitSystemEvent('delete', 'deployment', req.params.name);
     res.json({ deleted: req.params.name });
   } catch (err) { next(err); }
 });
@@ -341,6 +421,7 @@ app.post('/api/v1/statefulsets/:name/scale', async (req, res, next) => {
     }, {
       headers: { 'Content-Type': 'application/strategic-merge-patch+json' },
     });
+    emitSystemEvent('scale', 'statefulset', req.params.name, { replicas });
     res.json({ scaled: req.params.name, replicas });
   } catch (err) { next(err); }
 });
@@ -359,6 +440,7 @@ app.post('/api/v1/statefulsets/:name/restart', async (req, res, next) => {
     }, {
       headers: { 'Content-Type': 'application/strategic-merge-patch+json' },
     });
+    emitSystemEvent('restart', 'statefulset', req.params.name);
     res.json({ restarted: req.params.name });
   } catch (err) { next(err); }
 });
@@ -369,6 +451,7 @@ app.delete('/api/v1/statefulsets/:name', async (req, res, next) => {
       name: req.params.name,
       namespace: NAMESPACE,
     });
+    emitSystemEvent('delete', 'statefulset', req.params.name);
     res.json({ deleted: req.params.name });
   } catch (err) { next(err); }
 });
@@ -447,8 +530,9 @@ app.use((err, _req, res, _next) => {
 
 // ─── Start ──────────────────────────────────────────────────────────────
 
-app.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`epik8s-backend listening on :${PORT}`);
   console.log(`  namespace       : ${NAMESPACE}`);
   console.log(`  argocd ns       : ${ARGOCD_NAMESPACE}`);
+  console.log(`  websocket       : /ws/chat, /ws/system`);
 });
