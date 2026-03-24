@@ -79,8 +79,15 @@ async function commitFileGitLab({ host, projectPath }, filePath, branch, content
   const projectId = encodeURIComponent(projectPath);
   const encodedPath = encodeURIComponent(filePath);
   const url = `https://${host}/api/v4/projects/${projectId}/repository/files/${encodedPath}`;
+
+  // Determine if the file already exists — GitLab requires POST for create, PUT for update
+  const checkResp = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, {
+    headers: { 'PRIVATE-TOKEN': token },
+  });
+  const method = checkResp.ok ? 'PUT' : 'POST';
+
   const resp = await fetch(url, {
-    method: 'PUT',
+    method,
     headers: {
       'PRIVATE-TOKEN': token,
       'Content-Type': 'application/json',

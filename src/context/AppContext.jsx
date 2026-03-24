@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useRef, useCallback } f
 import { loadConfig } from '../services/configLoader.js';
 import PvwsClient from '../services/pvws.js';
 import ArchiverClient from '../services/archiver.js';
+import { buildChannelFinderUrl, setChannelFinderUrl } from '../services/channelFinderApi.js';
 
 const AppContext = createContext(null);
 
@@ -87,6 +88,10 @@ export function AppProvider({ children }) {
         if (archiverUrl) {
           archiverRef.current = new ArchiverClient(archiverUrl);
         }
+
+        // ChannelFinder client URL
+        const cfUrl = buildChannelFinderUrl(result.config);
+        if (cfUrl) setChannelFinderUrl(cfUrl);
 
         setLoading(false);
       })

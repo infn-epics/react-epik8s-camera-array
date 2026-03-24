@@ -12,6 +12,8 @@ import BeamlineLayoutView from './components/views/BeamlineLayout.jsx';
 import SettingsView from './components/views/SettingsView.jsx';
 import TicketsView from './components/views/TicketsView.jsx';
 import K8sView from './components/views/K8sView.jsx';
+import ChannelBrowserView from './components/views/ChannelBrowserView.jsx';
+import BeamlineControllerView from './components/views/BeamlineControllerView.jsx';
 
 function AppRoutes() {
   const { loading, error, config } = useApp();
@@ -52,6 +54,8 @@ function AppRoutes() {
             <Route path="/settings" element={<SettingsView />} />
             <Route path="/tickets" element={<TicketsView />} />
             <Route path="/k8s" element={<K8sView />} />
+            <Route path="/channels" element={<ChannelBrowserView />} />
+            <Route path="/controller" element={<BeamlineControllerView />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </AppShell>

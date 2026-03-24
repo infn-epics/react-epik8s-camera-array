@@ -83,20 +83,22 @@ export default function AppShell({ children, theme, onToggleTheme }) {
     {
       label: 'Controls',
       icon: '🎛',
-      paths: ['/dashboard', '/beamline', '/layout'],
+      paths: ['/dashboard', '/beamline', '/layout', '/controller'],
       items: [
-        { to: '/dashboard', icon: '📊', label: 'Dashboards' },
-        { to: '/beamline',  icon: '🔬', label: 'Beamline' },
-        { to: '/layout',    icon: '🗺', label: 'Layout' },
+        { to: '/dashboard',   icon: '📊', label: 'Dashboards' },
+        { to: '/beamline',    icon: '🔬', label: 'Beamline' },
+        { to: '/layout',      icon: '🗺', label: 'Layout' },
+        { to: '/controller',  icon: '🎛', label: 'Controller' },
       ],
     },
     {
       label: 'Monitor',
       icon: '📡',
-      paths: ['/cameras', '/instrumentation'],
+      paths: ['/cameras', '/instrumentation', '/channels'],
       items: [
         { to: '/cameras',         icon: '📷', label: 'Cameras' },
         { to: '/instrumentation', icon: '🔧', label: 'Instrumentation' },
+        { to: '/channels',        icon: '📡', label: 'Channels' },
       ],
     },
     {

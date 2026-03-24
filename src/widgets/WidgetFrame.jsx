@@ -4,6 +4,7 @@ import { getWidgetType } from './registry.js';
 import { usePv } from '../hooks/usePv.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import CreateTicketModal from '../components/common/CreateTicketModal.jsx';
+import ChannelInfoDialog from '../components/common/ChannelInfoDialog.jsx';
 
 /**
  * WidgetFrame — container for every widget in the dashboard grid.
@@ -20,6 +21,7 @@ const WidgetFrame = forwardRef(function WidgetFrame(
   const [collapsed, setCollapsed] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [showTicket, setShowTicket] = useState(false);
+  const [showChannelInfo, setShowChannelInfo] = useState(false);
   const [localViewMode, setLocalViewMode] = useState(widget.config?.viewMode || 'essential');
   const [contextMenu, setContextMenu] = useState(null);
   const { isAuthenticated } = useAuth();
@@ -211,6 +213,15 @@ const WidgetFrame = forwardRef(function WidgetFrame(
                 </button>
               </>
             )}
+            {widget.config?.pvPrefix && (
+              <>
+                <div className="bll-context-menu-sep" />
+                <button className="bll-context-menu-item" onClick={() => { setShowChannelInfo(true); closeContextMenu(); }}>
+                  <span className="bll-context-menu-icon">📡</span>
+                  <span className="bll-context-menu-label">Channel Info</span>
+                </button>
+              </>
+            )}
             {editMode && onConfigure && (
               <>
                 <div className="bll-context-menu-sep" />
@@ -245,6 +256,19 @@ const WidgetFrame = forwardRef(function WidgetFrame(
           initialSnapshot={showTicket?.snapshot || null}
         />,
         document.body,
+      )}
+      {/* Channel Info Dialog */}
+      {showChannelInfo && (
+        <ChannelInfoDialog
+          device={{
+            name: widget.config?.title || title,
+            iocName: widget.config?.iocName || '',
+            pvPrefix: widget.config?.pvPrefix || '',
+            zone: widget.config?.zone || '',
+            family: widget.config?.family || widget.type,
+          }}
+          onClose={() => setShowChannelInfo(false)}
+        />
       )}
     </div>
   );
