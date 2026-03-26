@@ -69,9 +69,13 @@ export function parseDevices(config) {
   const devices = [];
 
   for (const rawIoc of iocs) {
-    const template = rawIoc.template || '';
-    const defaults = iocDefaults[template] || {};
+    const templateKey = rawIoc.template || '';
+    const devtypeKey = rawIoc.devtype || '';
+    const defaults = templateKey
+      ? (iocDefaults[templateKey] || {})
+      : (iocDefaults[devtypeKey] || {});
     const ioc = deepMerge(defaults, rawIoc);
+    const template = ioc.template || '';
 
     const iocPrefix = ioc.iocprefix || '';
     const iocRoot = ioc.iocroot || '';
